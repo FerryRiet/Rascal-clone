@@ -108,7 +108,7 @@ public class JarConverter extends M3Converter {
 		case Opcodes.ACC_PROTECTED:
 			return constructModifierNode("protected");
 		default:
-			return constructModifierNode("bummer");
+			return constructModifierNode("public");
 		}
 	}
 
