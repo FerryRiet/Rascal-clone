@@ -49,14 +49,14 @@ public class JarConverter extends M3Converter {
 
 			cr.accept(cn, ClassReader.SKIP_DEBUG);
 
-			this.insert(this.declarations, values.sourceLocation("java+class", jarFile, "/" + cn.name), values.sourceLocation(jarFile));
+			this.insert(this.declarations, values.sourceLocation("java+class", "" , ClassFile + "/" + cn.name), values.sourceLocation(jarFile));
 			
-			this.insert(this.extendsRelations, values.sourceLocation("java+class", jarFile, "/" + cn.name), values.sourceLocation("java+class" , "" , cn.superName));
+			this.insert(this.extendsRelations, values.sourceLocation("java+class", "" , ClassFile + "/" + cn.name), values.sourceLocation("java+class" , "" , cn.superName));
 
 			//  @implements={<|java+class:///m3startv2/viaInterface|,|java+interface:///m3startv2/m3Interface|>},
 			for (int i = 0; i < cn.interfaces.size(); ++i) {
 				String iface = (String) cn.interfaces.get(i) ;
-				this.insert(this.implementsRelations, values.sourceLocation("java+class", jarFile, "/" + cn.name), values.sourceLocation("java+interface", jarFile, "/" + iface));
+				this.insert(this.implementsRelations, values.sourceLocation("java+class", "", ClassFile + "/" + cn.name), values.sourceLocation("java+interface", jarFile, "/" + iface));
 			}
 			
 			emitMethods(cn.methods);
@@ -70,12 +70,13 @@ public class JarConverter extends M3Converter {
 	}
 
 	private void emitMethods(List<MethodNode> methods) {
+		String MethodArg;
 		try {
 			for (int i = 0; i < methods.size(); ++i) {
 				MethodNode method = methods.get(i);
 				System.out.println(new String("Signature :" ) + method.name + " "  + method.signature + method.desc) ;
-				
-				JarConverter.this.insert(JarConverter.this.declarations, values.sourceLocation("java+method", jarFile, "/" + method.name), values.sourceLocation(jarFile));
+				MethodArg = method.desc.substring(1,method.desc.indexOf(")" ));
+				JarConverter.this.insert(JarConverter.this.declarations, values.sourceLocation("java+method", "" , ClassFile + "/" + method.name+"(" + MethodArg + ")"), values.sourceLocation(jarFile));
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
