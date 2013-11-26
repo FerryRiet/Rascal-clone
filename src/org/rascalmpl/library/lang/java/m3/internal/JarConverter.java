@@ -5,6 +5,7 @@ import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.util.List;
 
+import org.eclipse.imp.pdb.facts.IConstructor;
 import org.eclipse.imp.pdb.facts.ISourceLocation;
 import org.eclipse.imp.pdb.facts.type.TypeStore;
 import org.objectweb.asm.AnnotationVisitor;
@@ -29,7 +30,8 @@ public class JarConverter extends M3Converter {
 	}
 
 	private String extractJarName(ISourceLocation jarLoc) {
-		String tmp = jarLoc.getPath().substring(0, jarLoc.getPath().indexOf("!"));
+		String tmp = jarLoc.getPath().substring(0,
+				jarLoc.getPath().indexOf("!"));
 		return tmp.substring(tmp.lastIndexOf("/") + 1);
 	}
 
@@ -37,30 +39,42 @@ public class JarConverter extends M3Converter {
 		return jarLoc.getPath().substring(jarLoc.getPath().indexOf("!") + 1);
 	}
 
-
 	public void convert(ISourceLocation jarLoc, IEvaluatorContext ctx) {
 
 		this.jarFile = extractJarName(jarLoc);
 		this.ClassFile = extractClassName(jarLoc);
 
 		try {
-			ClassReader cr = new ClassReader(ctx.getResolverRegistry().getInputStream(jarLoc.getURI()));
+			ClassReader cr = new ClassReader(ctx.getResolverRegistry()
+					.getInputStream(jarLoc.getURI()));
 			ClassNode cn = new ClassNode();
 
 			cr.accept(cn, ClassReader.SKIP_DEBUG);
 
-			this.insert(this.declarations, values.sourceLocation("java+class", "" , ClassFile + "/" + cn.name), values.sourceLocation(jarFile));
-			
-			this.insert(this.extendsRelations, values.sourceLocation("java+class", "" , ClassFile + "/" + cn.name), values.sourceLocation("java+class" , "" , cn.superName));
+			this.insert(
+					this.declarations,
+					values.sourceLocation("java+class", "", ClassFile + "/"
+							+ cn.name), values.sourceLocation(jarFile));
 
-			//  @implements={<|java+class:///m3startv2/viaInterface|,|java+interface:///m3startv2/m3Interface|>},
+			this.insert(
+					this.extendsRelations,
+					values.sourceLocation("java+class", "", ClassFile + "/"
+							+ cn.name),
+					values.sourceLocation("java+class", "", cn.superName));
+
+			// @implements={<|java+class:///m3startv2/viaInterface|,|java+interface:///m3startv2/m3Interface|>},
 			for (int i = 0; i < cn.interfaces.size(); ++i) {
-				String iface = (String) cn.interfaces.get(i) ;
-				this.insert(this.implementsRelations, values.sourceLocation("java+class", "", ClassFile + "/" + cn.name), values.sourceLocation("java+interface", jarFile, "/" + iface));
+				String iface = (String) cn.interfaces.get(i);
+				this.insert(
+						this.implementsRelations,
+						values.sourceLocation("java+class", "", ClassFile + "/"
+								+ cn.name),
+						values.sourceLocation("java+interface", jarFile, "/"
+								+ iface));
 			}
-			
+
 			emitMethods(cn.methods);
-			emitFields(cn.fields) ;
+			emitFields(cn.fields);
 
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -74,36 +88,39 @@ public class JarConverter extends M3Converter {
 		try {
 			for (int i = 0; i < methods.size(); ++i) {
 				MethodNode method = methods.get(i);
-				System.out.println(new String("Signature :" ) + method.name + " "  + method.signature + method.desc) ;
-				MethodArg = method.desc.substring(1,method.desc.indexOf(")" ));
-				JarConverter.this.insert(JarConverter.this.declarations, values.sourceLocation("java+method", "" , ClassFile + "/" + method.name+"(" + MethodArg + ")"), values.sourceLocation(jarFile));
+				System.out.println(new String("Signature :") + method.name
+						+ " " + method.signature + method.desc);
+				MethodArg = method.desc.substring(1, method.desc.indexOf(")"));
+				this.insert(this.declarations,values.sourceLocation("java+method", "", ClassFile + "/" + method.name + "(" + MethodArg + ")"),values.sourceLocation(jarFile));
+				this.insert(this.modifiers,values.sourceLocation("java+method", "" ,ClassFile + "/" + method.name),mapFieldAccesCode(method.access) );
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
-	
-    //   <|java+field:///m3startv2/Main/intField|,|project://m3startv2/src/m3startv2/Main.java|(54,13,<5,12>,<5,25>)>,
+
+	private IConstructor mapFieldAccesCode(int code) {
+		switch (code) {
+		case Opcodes.ACC_PUBLIC:
+			return constructModifierNode("public");
+		case Opcodes.ACC_PRIVATE:
+			return constructModifierNode("private");
+		case Opcodes.ACC_PROTECTED:
+			return constructModifierNode("protected");
+		default:
+			return constructModifierNode("bummer");
+		}
+	}
+
+	// <|java+field:///m3startv2/Main/intField|,|project://m3startv2/src/m3startv2/Main.java|(54,13,<5,12>,<5,25>)>,
 	private void emitFields(List<FieldNode> fields) {
 		try {
 			for (int i = 0; i < fields.size(); ++i) {
 				FieldNode field = fields.get(i);
-				System.out.println("Debug.......");
-				this.insert(this.declarations, values.sourceLocation("java+field", jarFile, "/" + field.name), values.sourceLocation(jarFile));
-				
-				switch(field.access) {
-					case Opcodes.ACC_PUBLIC :
-						this.insert(this.modifiers, values.sourceLocation("java+field", jarFile, "/" + field.name), constructModifierNode("public") );
-						break ;						
-					case Opcodes.ACC_PRIVATE :
-						this.insert(this.modifiers, values.sourceLocation("java+field", jarFile, "/" + field.name), constructModifierNode("private"));
-						break ;						
-					case Opcodes.ACC_PROTECTED :
-						this.insert(this.modifiers, values.sourceLocation("java+field", jarFile, "/" + field.name), constructModifierNode("protected"));
-						break ;		
-					default :
-						this.insert(this.modifiers, values.sourceLocation("java+field", jarFile, "/" + field.name), values.string("bummer"));							
-				}
+				System.out.println("Debug......." + field.name);
+				this.insert(this.declarations,values.sourceLocation("java+field", jarFile, "/"+ field.name), values.sourceLocation(jarFile));
+
+				this.insert(this.modifiers,values.sourceLocation("java+field", jarFile, "/" + field.name),mapFieldAccesCode(field.access) );
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
