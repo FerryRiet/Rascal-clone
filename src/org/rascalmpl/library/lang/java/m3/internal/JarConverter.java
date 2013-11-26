@@ -10,6 +10,7 @@ import org.eclipse.imp.pdb.facts.ISourceLocation;
 import org.eclipse.imp.pdb.facts.type.TypeStore;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.Attribute;
+import org.eclipse.jdt.core.*;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
@@ -85,19 +86,20 @@ public class JarConverter extends M3Converter {
 	}
 
 	private void emitMethods(List<MethodNode> methods) {
-		String MethodArg;
 		try {
 			for (int i = 0; i < methods.size(); ++i) {
 				MethodNode method = methods.get(i);
 				System.out.println(new String("Signature :") + method.name
 						+ " " + method.signature + "  " + method.desc);
-				MethodArg = method.desc.substring(1, method.desc.indexOf(")"));
-				//Add Signature Fields
+				//If Generic use signature else use description
 				if(method.signature != null){
-					SignatureReader sr = new SignatureReader(method.signature);
-					sr.accept(new SigVisitor(Opcodes.ASM4));
+					String sig = extractSignature(method.signature);
+					this.insert(this.declarations,values.sourceLocation("java+method", "", ClassFile + "/" + method.name + "(" + sig + ")"),values.sourceLocation(jarFile));
+				}else{
+					String sig = extractSignature(method.desc);
+					this.insert(this.declarations,values.sourceLocation("java+method", "", ClassFile + "/" + method.name + "(" + sig + ")"),values.sourceLocation(jarFile));					
 				}
-				this.insert(this.declarations,values.sourceLocation("java+method", "", ClassFile + "/" + method.name + "(" + MethodArg + ")"),values.sourceLocation(jarFile));
+				
 				this.insert(this.modifiers,values.sourceLocation("java+method", "" ,ClassFile + "/" + method.name),mapFieldAccesCode(method.access) );
 			}
 		} catch (Exception e) {
@@ -105,9 +107,12 @@ public class JarConverter extends M3Converter {
 		}
 	}
 
-	private void extractTypeVariable(String Signature){
-		
-		
+	private String extractSignature(String sig){
+		String args = Signature.toString(sig);
+		args = args.substring(args.indexOf("(")+1,args.indexOf(")"));
+		args = args.replaceAll("\\s+","");
+		args = args.replaceAll("/",".");
+		return args;		
 	}
 	
 	private IConstructor mapFieldAccesCode(int code) {
@@ -147,11 +152,16 @@ public class JarConverter extends M3Converter {
 		
 		public void visitFormalTypeParameter(String name){
 			try {
+				System.out.println(name);
 				JarConverter.this.insert(JarConverter.this.declarations,values.sourceLocation("java+typeVariable","",ClassFile + "/" + name),values.sourceLocation(jarFile) );
 			} catch (URISyntaxException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+		}
+		
+		public void visitBaseType(char descriptor){
+			System.out.println(descriptor);
 		}
 		
 	}
