@@ -17,6 +17,7 @@ import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.signature.*;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.rascalmpl.interpreter.IEvaluatorContext;
@@ -89,8 +90,13 @@ public class JarConverter extends M3Converter {
 			for (int i = 0; i < methods.size(); ++i) {
 				MethodNode method = methods.get(i);
 				System.out.println(new String("Signature :") + method.name
-						+ " " + method.signature + method.desc);
+						+ " " + method.signature + "  " + method.desc);
 				MethodArg = method.desc.substring(1, method.desc.indexOf(")"));
+				//Add Signature Fields
+				if(method.signature != null){
+					SignatureReader sr = new SignatureReader(method.signature);
+					sr.accept(new SigVisitor(Opcodes.ASM4));
+				}
 				this.insert(this.declarations,values.sourceLocation("java+method", "", ClassFile + "/" + method.name + "(" + MethodArg + ")"),values.sourceLocation(jarFile));
 				this.insert(this.modifiers,values.sourceLocation("java+method", "" ,ClassFile + "/" + method.name),mapFieldAccesCode(method.access) );
 			}
@@ -99,6 +105,11 @@ public class JarConverter extends M3Converter {
 		}
 	}
 
+	private void extractTypeVariable(String Signature){
+		
+		
+	}
+	
 	private IConstructor mapFieldAccesCode(int code) {
 		switch (code) {
 		case Opcodes.ACC_PUBLIC:
@@ -118,12 +129,30 @@ public class JarConverter extends M3Converter {
 			for (int i = 0; i < fields.size(); ++i) {
 				FieldNode field = fields.get(i);
 				System.out.println("Debug......." + field.name);
-				this.insert(this.declarations,values.sourceLocation("java+field", jarFile, "/"+ field.name), values.sourceLocation(jarFile));
+				this.insert(this.declarations,values.sourceLocation("java+field","" , ClassFile+ "/"+ field.name), values.sourceLocation(jarFile));
 
-				this.insert(this.modifiers,values.sourceLocation("java+field", jarFile, "/" + field.name),mapFieldAccesCode(field.access) );
+				this.insert(this.modifiers,values.sourceLocation("java+field", "", ClassFile + "/" + field.name),mapFieldAccesCode(field.access) );
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+	
+	private class SigVisitor extends SignatureVisitor{
+
+		public SigVisitor(int api) {
+			super(api);
+			// TODO Auto-generated constructor stub
+		}
+		
+		public void visitFormalTypeParameter(String name){
+			try {
+				JarConverter.this.insert(JarConverter.this.declarations,values.sourceLocation("java+typeVariable","",ClassFile + "/" + name),values.sourceLocation(jarFile) );
+			} catch (URISyntaxException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
 	}
 }
