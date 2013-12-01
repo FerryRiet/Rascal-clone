@@ -78,6 +78,10 @@ public class JarConverter extends M3Converter {
                                                                 + iface));
                         }
 
+                        // TODO: output class modifiers
+                        // cn.access check original M3 model 
+                        
+                        
                         emitMethods(cn.methods);
                         emitFields(cn.fields);
 
@@ -97,9 +101,9 @@ public class JarConverter extends M3Converter {
                                 
                                 if(method.name.contains("<")){
                                         String name = LogPath.substring(LogPath.lastIndexOf("/"));
-                                        inserDeclMethod("java+constructor",method.signature,method.desc,name,method.access);
+                                        insertDeclMethod("java+constructor",method.signature,method.desc,name,method.access);
                                 }else{
-                                        inserDeclMethod("java+method",method.signature,method.desc,method.name,method.access);                                        
+                                        insertDeclMethod("java+method",method.signature,method.desc,method.name,method.access);                                        
                                 }
                         }
 
@@ -108,7 +112,7 @@ public class JarConverter extends M3Converter {
                 }
         }
 
-        private void inserDeclMethod(String type, String signature, String desc, String name,int access) throws URISyntaxException{
+        private void insertDeclMethod(String type, String signature, String desc, String name,int access) throws URISyntaxException{
                 String sig ;
                 if( signature != null) {
                         sig = extractSignature(signature);
