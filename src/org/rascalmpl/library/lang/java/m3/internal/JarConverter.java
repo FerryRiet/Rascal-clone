@@ -108,7 +108,7 @@ public class JarConverter extends M3Converter {
 		}
 	}
 
-	private void inserDeclMethod(String type, String signature, String desc, String name,int access)throws URISyntaxException{
+	private void inserDeclMethod(String type, String signature, String desc, String name,int access) throws URISyntaxException{
 		String sig ;
 		if( signature != null) {
 			sig = extractSignature(signature);
@@ -118,7 +118,7 @@ public class JarConverter extends M3Converter {
 		this.insert(this.declarations,values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"),values.sourceLocation(jarFile + "!" + ClassFile));	
 		for ( int fs = 0 ; fs < 15 ; fs++ ) { 
 			if ( (access & (0x0001 << fs )) != 0 ) {
-				this.insert(this.modifiers,values.sourceLocation(type, "" ,LogPath + "/" + name + "(" + sig + ")"),mapFieldAccesCode(access) );				
+				this.insert(this.modifiers,values.sourceLocation(type, "" ,LogPath + "/" + name + "(" + sig + ")"),mapFieldAccesCode(0x0001<<fs) );				
 			}
 		}
 	}
