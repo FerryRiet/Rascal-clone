@@ -2,10 +2,6 @@ package org.rascalmpl.library.lang.java.m3.internal;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 
 import org.eclipse.imp.pdb.facts.IConstructor;
 import org.eclipse.imp.pdb.facts.ISourceLocation;
@@ -21,10 +17,6 @@ import org.rascalmpl.interpreter.IEvaluatorContext;
 
 public class JarConverter extends M3Converter
 {
-	private Map<String, Set<String>> methodOccurences = new HashMap<String, Set<String>>();
-	private Map<String, String> extendedStuff = new HashMap<String, String>();
-	private String currentClassName;
-	
 	public JarConverter(TypeStore typeStore)
 	{
 		super(typeStore);
@@ -38,6 +30,8 @@ public class JarConverter extends M3Converter
 				.getInputStream(jarLoc.getURI()));
 			
 			cr.accept(new Jar2M3ClassVisitor(jarLoc), ClassReader.SKIP_DEBUG);
+			
+			System.out.println("END");
 		}
 		catch (IOException e)
 		{
@@ -48,14 +42,15 @@ public class JarConverter extends M3Converter
 
 	class Jar2M3ClassVisitor extends ClassVisitor
 	{
-		private final String jarFile;
-		private final String classFile;
+		private final String jarFileName;
+		private final String classFileName;
+		private String className;
 
 		public Jar2M3ClassVisitor(ISourceLocation jarLoc)
 		{
 			super(Opcodes.ASM4, null);
-			this.jarFile = extractJarName(jarLoc);
-			this.classFile = extractClassName(jarLoc);
+			this.jarFileName = extractJarName(jarLoc);
+			this.classFileName = extractClassName(jarLoc);
 		}
 
 		private String extractJarName(ISourceLocation jarLoc)
@@ -80,6 +75,10 @@ public class JarConverter extends M3Converter
 					return constructModifierNode("private");
 				case Opcodes.ACC_PROTECTED:
 					return constructModifierNode("protected");
+				case Opcodes.ACC_STATIC:
+					return constructModifierNode("static");
+				case Opcodes.ACC_FINAL:
+					return constructModifierNode("final");
 				default:
 					return constructModifierNode("public");
 			}
@@ -89,27 +88,24 @@ public class JarConverter extends M3Converter
 		public void visit(int version, int access, String name,
 			String signature, String superName, String[] interfaces)
 		{
+			className = name;
+			
 			try
 			{
 				JarConverter.this.insert(JarConverter.this.declarations,
-					values.sourceLocation("java+class", classFile, "/" + name),
-					values.sourceLocation(jarFile));
+					values.sourceLocation("java+class", className, ""),
+					values.sourceLocation(jarFileName + "!" + classFileName));
 				
 				JarConverter.this.insert(JarConverter.this.extendsRelations,
-					values.sourceLocation("java+class", classFile, "/" + name),
-					values.sourceLocation("java+class", "", "/" + superName));
+					values.sourceLocation("java+class", className, ""),
+					values.sourceLocation("java+class", superName, ""));
 				
 				for (String iFace : interfaces)
 				{
 					JarConverter.this.insert(JarConverter.this.implementsRelations,
-						values.sourceLocation("java+class", classFile, "/" + name),
-						values.sourceLocation("java+interface", jarFile, "/" + iFace));
-					
-					extendedStuff.put(name, iFace);
+						values.sourceLocation("java+class", className, ""),
+						values.sourceLocation("java+interface", iFace, ""));
 				}
-				
-				extendedStuff.put(name, superName);
-				currentClassName = name;
 			}
 			catch (URISyntaxException e)
 			{
@@ -159,12 +155,22 @@ public class JarConverter extends M3Converter
 				System.out.println("Field Signature: " + name + desc + signature);
 				
 				JarConverter.this.insert(JarConverter.this.declarations,
-					values.sourceLocation("java+field", "", jarFile + "/" + name),
-					values.sourceLocation(jarFile));
+					values.sourceLocation("java+field", className, "/" + name),
+					values.sourceLocation(jarFileName + "!" + classFileName));
 				
-				JarConverter.this.insert(JarConverter.this.modifiers,
-					values.sourceLocation("java+field", "", jarFile + "/" + name),
-					mapFieldAccessCode(access));
+				JarConverter.this.insert(JarConverter.this.containment,
+						values.sourceLocation("java+class", className, ""),
+						values.sourceLocation("java+field", className, "/" + name));
+				
+				for(int i = 0; i < 15; i ++)
+				{
+					if((access & (0x0001 << i)) != 0)
+					{
+						JarConverter.this.insert(JarConverter.this.modifiers,
+							values.sourceLocation("java+field", className, "/" + name),
+							mapFieldAccessCode(access));
+					}
+				}
 			}
 			catch (URISyntaxException e)
 			{
@@ -177,21 +183,41 @@ public class JarConverter extends M3Converter
 		public MethodVisitor visitMethod(int access, String name, String desc,
 			String signature, String[] exceptions)
 		{
+			String methodType;
+			if(name.equalsIgnoreCase("<init>"))
+			{
+				methodType = "java+constructor";
+				name = className;
+			}
+			else
+			{
+				methodType = "java+method";
+			}
+			String sig = signature == null ? desc : signature;
+			sig = sig.replaceAll("/", ".");
+			sig = sig.substring(0, sig.length() - 1);
+			
+			System.out.println("Method Signature: " + name + " " + desc + " " + signature);
+			
 			try
 			{
-				System.out.println("Method Signature: " + name + desc + signature);
-				
 				JarConverter.this.insert(JarConverter.this.declarations,
-					values.sourceLocation("java+method", "", classFile + "/" + name + desc),
-					values.sourceLocation(classFile));
+					values.sourceLocation(methodType, className, "/" + name + sig),
+					values.sourceLocation(jarFileName + "!" + classFileName));
 				
-				JarConverter.this.insert(JarConverter.this.modifiers,
-					values.sourceLocation("java+method", "", classFile + "/" + name),
-					mapFieldAccessCode(access));
+				JarConverter.this.insert(JarConverter.this.containment,
+					values.sourceLocation("java+class", className, ""),
+					values.sourceLocation(methodType, className, "/" + name + sig));
 				
-				if(!methodOccurences.containsKey(name))
-					methodOccurences.put(name, new HashSet<String>());
-				methodOccurences.get(name).add(currentClassName);
+				for(int i = 0; i < 15; i ++)
+				{
+					if((access & (0x0001 << i)) != 0)
+					{
+						JarConverter.this.insert(JarConverter.this.modifiers,
+							values.sourceLocation(methodType, className, "/" + name + sig),
+							mapFieldAccessCode(access));
+					}
+				}
 			}
 			catch (URISyntaxException e)
 			{
@@ -204,29 +230,7 @@ public class JarConverter extends M3Converter
 		@Override
 		public void visitEnd()
 		{
-			for(Map.Entry<String, Set<String>> method : methodOccurences.entrySet())
-			{
-				System.out.println("END: " + method);
-				
-				for(String containingClass : method.getValue())
-				{
-					if(extendedStuff.containsKey(containingClass)
-						&& methodOccurences.containsKey(extendedStuff.get(containingClass)))
-					{
-						try
-						{
-							JarConverter.this.insert(JarConverter.this.methodOverrides,
-								values.sourceLocation("java+method", "", containingClass + "/" + method.getKey()),
-								values.sourceLocation("java+class", "", extendedStuff.get(containingClass)));
-						}
-						catch (URISyntaxException e)
-						{
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-					}
-				}
-			}
+			
 		}
 	}
 }
