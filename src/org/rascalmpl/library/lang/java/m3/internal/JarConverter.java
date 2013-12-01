@@ -67,6 +67,13 @@ public class JarConverter extends M3Converter {
                                                         + cn.name),
                                         values.sourceLocation("java+class", "", cn.superName));
 
+                        for ( int fs = 0 ; fs < 15 ; fs++ ) { 
+                            if ( (cn.access & (0x0001 << fs )) != 0 ) {
+                                    this.insert(this.modifiers,values.sourceLocation("java+class", "", LogPath + "/"
+                                            + cn.name),mapFieldAccesCode(0x0001<<fs) );                                
+                            }
+                        }
+                        
                         // @implements={<|java+class:///m3startv2/viaInterface|,|java+interface:///m3startv2/m3Interface|>},
                         for (int i = 0; i < cn.interfaces.size(); ++i) {
                                 String iface = (String) cn.interfaces.get(i);
