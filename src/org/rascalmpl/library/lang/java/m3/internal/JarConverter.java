@@ -109,16 +109,18 @@ public class JarConverter extends M3Converter {
 	}
 
 	private void inserDeclMethod(String type, String signature, String desc, String name,int access)throws URISyntaxException{
-		if(signature != null){
-			String sig = extractSignature(signature);
-			this.insert(this.declarations,values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"),values.sourceLocation(jarFile + "!" + ClassFile));
-			this.insert(this.modifiers,values.sourceLocation(type, "" ,LogPath + "/" + name + "(" + sig + ")"),mapFieldAccesCode(access) );				
-		}else{
-			String sig = extractSignature(desc);
-			this.insert(this.declarations,values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"),values.sourceLocation(jarFile + "!" + ClassFile));		
-			this.insert(this.modifiers,values.sourceLocation(type, "" ,LogPath + "/" + name + "(" + sig + ")"),mapFieldAccesCode(access) );				
+		String sig ;
+		if( signature != null) {
+			sig = extractSignature(signature);
+		}else {
+			sig = extractSignature(desc);
 		}	
-		
+		this.insert(this.declarations,values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"),values.sourceLocation(jarFile + "!" + ClassFile));	
+		for ( int fs = 0 ; fs < 15 ; fs++ ) { 
+			if ( (access & (0x0001 << fs )) != 0 ) {
+				this.insert(this.modifiers,values.sourceLocation(type, "" ,LogPath + "/" + name + "(" + sig + ")"),mapFieldAccesCode(access) );				
+			}
+		}
 	}
 	
 	private String extractSignature(String sig){
@@ -130,6 +132,7 @@ public class JarConverter extends M3Converter {
 	}
 	
 	private IConstructor mapFieldAccesCode(int code) {
+		// Check the original M3 implementation for possible IConstructor types.
 		switch (code) {
 		case Opcodes.ACC_PUBLIC:
 			return constructModifierNode("public");
@@ -154,7 +157,7 @@ public class JarConverter extends M3Converter {
 				System.out.println("Debug......." + field.name);
 				this.insert(this.declarations,values.sourceLocation("java+field","" , LogPath+ "/"+ field.name), values.sourceLocation(jarFile + "!" + ClassFile));
 
-				// The jvm acces codes specify 15 different modifiers (more then in the Java language)
+				// The jvm acces codes specify 15 different modifiers (more then in the Java language itself)
 				for ( int fs = 0 ; fs < 15 ; fs++ ) { 
 					if ( (field.access & (0x0001 << fs )) != 0 ) {
 						this.insert(this.modifiers,values.sourceLocation("java+field", "", LogPath + "/" + field.name),mapFieldAccesCode(1<<fs) );
