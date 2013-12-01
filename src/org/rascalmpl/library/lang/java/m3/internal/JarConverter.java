@@ -167,8 +167,11 @@ public class JarConverter extends M3Converter {
                 try {
                         for (int i = 0; i < fields.size(); ++i) {
                                 FieldNode field = fields.get(i);
-                                System.out.println("Debug......." + field.name);
+                                //System.out.println("Debug......." + field.name);
                                 this.insert(this.declarations,values.sourceLocation("java+field","" , LogPath+ "/"+ field.name), values.sourceLocation(jarFile + "!" + ClassFile));
+
+                                // Containment of fields. 
+                                this.insert(this.containment,values.sourceLocation("java+class", "", LogPath ), values.sourceLocation("java+field","" , LogPath+ "/"+ field.name));        
 
                                 // The jvm acces codes specify 15 different modifiers (more then in the Java language itself)
                                 for ( int fs = 0 ; fs < 15 ; fs++ ) { 
