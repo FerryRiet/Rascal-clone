@@ -41,5 +41,5 @@ public list[loc] crawl2(loc dir, str suffix){
 	  };
 }
 
-public list[loc] crawl3(loc dir, str suffix) =
-  isDirectory(dir) ? [crawl(e,ext) | e <- dir.ls] : (dir.extension == ext ? [dir] : []);
+public list[loc] crawl3(loc dir, str ext) =
+  isDirectory(dir)	 ? [*crawl3(e, ext) | e <- dir.ls] 	: (dir.extension == ext ? [dir] : []);
