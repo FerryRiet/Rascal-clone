@@ -17,6 +17,7 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
+import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.signature.*;
 import org.objectweb.asm.Opcodes;
@@ -26,6 +27,7 @@ import org.rascalmpl.interpreter.IEvaluatorContext;
 public class JarConverter extends M3Converter {
 	private String jarFile;
 	private String ClassFile;
+	private String LogPath;
 
 	JarConverter(TypeStore typeStore) {
 		super(typeStore);
@@ -45,7 +47,8 @@ public class JarConverter extends M3Converter {
 
 		this.jarFile = extractJarName(jarLoc);
 		this.ClassFile = extractClassName(jarLoc);
-
+		this.LogPath = this.ClassFile.replace(".class", "");
+		if(this.LogPath.contains("$")){ this.LogPath = LogPath.substring(0, LogPath.indexOf("$"));}
 		try {
 			ClassReader cr = new ClassReader(ctx.getResolverRegistry()
 					.getInputStream(jarLoc.getURI()));
@@ -55,12 +58,12 @@ public class JarConverter extends M3Converter {
 
 			this.insert(
 					this.declarations,
-					values.sourceLocation("java+class", "", ClassFile + "/"
-							+ cn.name), values.sourceLocation(jarFile));
+					values.sourceLocation("java+class", "", LogPath + "/"
+							+ cn.name), values.sourceLocation(jarFile + "!" + ClassFile));
 
 			this.insert(
 					this.extendsRelations,
-					values.sourceLocation("java+class", "", ClassFile + "/"
+					values.sourceLocation("java+class", "", LogPath + "/"
 							+ cn.name),
 					values.sourceLocation("java+class", "", cn.superName));
 
@@ -69,9 +72,9 @@ public class JarConverter extends M3Converter {
 				String iface = (String) cn.interfaces.get(i);
 				this.insert(
 						this.implementsRelations,
-						values.sourceLocation("java+class", "", ClassFile + "/"
+						values.sourceLocation("java+class", "", LogPath + "/"
 								+ cn.name),
-						values.sourceLocation("java+interface", jarFile, "/"
+						values.sourceLocation("java+interface", ClassFile, "/"
 								+ iface));
 			}
 
@@ -91,22 +94,33 @@ public class JarConverter extends M3Converter {
 				MethodNode method = methods.get(i);
 				System.out.println(new String("Signature :") + method.name
 						+ " " + method.signature + "  " + method.desc);
-				//If Generic use signature else use description
-				if(method.signature != null){
-					String sig = extractSignature(method.signature);
-					this.insert(this.declarations,values.sourceLocation("java+method", "", ClassFile + "/" + method.name + "(" + sig + ")"),values.sourceLocation(jarFile));
-				}else{
-					String sig = extractSignature(method.desc);
-					this.insert(this.declarations,values.sourceLocation("java+method", "", ClassFile + "/" + method.name + "(" + sig + ")"),values.sourceLocation(jarFile));					
-				}
 				
-				this.insert(this.modifiers,values.sourceLocation("java+method", "" ,ClassFile + "/" + method.name),mapFieldAccesCode(method.access) );
+				if(method.name.contains("<")){
+					String name = LogPath.substring(LogPath.lastIndexOf("/"));
+					inserDeclMethod("java+constructor",method.signature,method.desc,name,method.access);
+				}else{
+					inserDeclMethod("java+method",method.signature,method.desc,method.name,method.access);					
+				}
 			}
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 
+	private void inserDeclMethod(String type, String signature, String desc, String name,int access)throws URISyntaxException{
+		if(signature != null){
+			String sig = extractSignature(signature);
+			this.insert(this.declarations,values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"),values.sourceLocation(jarFile + "!" + ClassFile));
+			this.insert(this.modifiers,values.sourceLocation(type, "" ,LogPath + "/" + name + "(" + sig + ")"),mapFieldAccesCode(access) );				
+		}else{
+			String sig = extractSignature(desc);
+			this.insert(this.declarations,values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"),values.sourceLocation(jarFile + "!" + ClassFile));		
+			this.insert(this.modifiers,values.sourceLocation(type, "" ,LogPath + "/" + name + "(" + sig + ")"),mapFieldAccesCode(access) );				
+		}	
+		
+	}
+	
 	private String extractSignature(String sig){
 		String args = Signature.toString(sig);
 		args = args.substring(args.indexOf("(")+1,args.indexOf(")"));
@@ -134,9 +148,9 @@ public class JarConverter extends M3Converter {
 			for (int i = 0; i < fields.size(); ++i) {
 				FieldNode field = fields.get(i);
 				System.out.println("Debug......." + field.name);
-				this.insert(this.declarations,values.sourceLocation("java+field","" , ClassFile+ "/"+ field.name), values.sourceLocation(jarFile));
+				this.insert(this.declarations,values.sourceLocation("java+field","" , LogPath+ "/"+ field.name), values.sourceLocation(jarFile + "!" + ClassFile));
 
-				this.insert(this.modifiers,values.sourceLocation("java+field", "", ClassFile + "/" + field.name),mapFieldAccesCode(field.access) );
+				this.insert(this.modifiers,values.sourceLocation("java+field", "", LogPath + "/" + field.name),mapFieldAccesCode(field.access) );
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -153,7 +167,7 @@ public class JarConverter extends M3Converter {
 		public void visitFormalTypeParameter(String name){
 			try {
 				System.out.println(name);
-				JarConverter.this.insert(JarConverter.this.declarations,values.sourceLocation("java+typeVariable","",ClassFile + "/" + name),values.sourceLocation(jarFile) );
+				JarConverter.this.insert(JarConverter.this.declarations,values.sourceLocation("java+typeVariable","",LogPath + "/" + name),values.sourceLocation(jarFile + "!" + ClassFile) );
 			} catch (URISyntaxException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
