@@ -65,6 +65,27 @@ public class JarConverter extends M3Converter
 			return jarLoc.getPath().substring(jarLoc.getPath().indexOf("!") + 1);
 		}
 		
+		private void processAccess(int access, String scheme, String authority, String path)
+		{
+			for(int i = 0; i < 15; i ++)
+			{
+				if((access & (0x0001 << i)) != 0)
+				{
+					try
+					{
+						JarConverter.this.insert(JarConverter.this.modifiers,
+							values.sourceLocation(scheme, authority, path),
+							mapFieldAccessCode(0x0001 << i));
+					}
+					catch (URISyntaxException e)
+					{
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+		
 		private IConstructor mapFieldAccessCode(int code)
 		{
 			switch (code)
@@ -99,6 +120,8 @@ public class JarConverter extends M3Converter
 				JarConverter.this.insert(JarConverter.this.extendsRelations,
 					values.sourceLocation("java+class", className, ""),
 					values.sourceLocation("java+class", superName, ""));
+				
+				processAccess(access, "java+class", className, "");
 				
 				for (String iFace : interfaces)
 				{
@@ -159,18 +182,10 @@ public class JarConverter extends M3Converter
 					values.sourceLocation(jarFileName + "!" + classFileName));
 				
 				JarConverter.this.insert(JarConverter.this.containment,
-						values.sourceLocation("java+class", className, ""),
-						values.sourceLocation("java+field", className, "/" + name));
+					values.sourceLocation("java+class", className, ""),
+					values.sourceLocation("java+field", className, "/" + name));
 				
-				for(int i = 0; i < 15; i ++)
-				{
-					if((access & (0x0001 << i)) != 0)
-					{
-						JarConverter.this.insert(JarConverter.this.modifiers,
-							values.sourceLocation("java+field", className, "/" + name),
-							mapFieldAccessCode(access));
-					}
-				}
+				processAccess(access, "java+field", className, "/" + name);
 			}
 			catch (URISyntaxException e)
 			{
@@ -209,15 +224,7 @@ public class JarConverter extends M3Converter
 					values.sourceLocation("java+class", className, ""),
 					values.sourceLocation(methodType, className, "/" + name + sig));
 				
-				for(int i = 0; i < 15; i ++)
-				{
-					if((access & (0x0001 << i)) != 0)
-					{
-						JarConverter.this.insert(JarConverter.this.modifiers,
-							values.sourceLocation(methodType, className, "/" + name + sig),
-							mapFieldAccessCode(access));
-					}
-				}
+				processAccess(access, methodType, className, "/" + name + sig);
 			}
 			catch (URISyntaxException e)
 			{
