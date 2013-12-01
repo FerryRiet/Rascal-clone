@@ -132,6 +132,8 @@ public class JarConverter extends M3Converter {
                                 this.insert(this.modifiers,values.sourceLocation(type, "" ,LogPath + "/" + name + "(" + sig + ")"),mapFieldAccesCode(0x0001<<fs) );                                
                         }
                 }
+                // Containment of methods.
+                this.insert(this.containment,values.sourceLocation("java+class", "", LogPath ), values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"));        
         }
         
         private String extractSignature(String sig){
