@@ -137,6 +137,10 @@ public class JarConverter extends M3Converter {
 			return constructModifierNode("private");
 		case Opcodes.ACC_PROTECTED:
 			return constructModifierNode("protected");
+		case Opcodes.ACC_STATIC:
+			return constructModifierNode("static");
+		case Opcodes.ACC_FINAL:
+			return constructModifierNode("final");
 		default:
 			return constructModifierNode("public");
 		}
@@ -150,7 +154,12 @@ public class JarConverter extends M3Converter {
 				System.out.println("Debug......." + field.name);
 				this.insert(this.declarations,values.sourceLocation("java+field","" , LogPath+ "/"+ field.name), values.sourceLocation(jarFile + "!" + ClassFile));
 
-				this.insert(this.modifiers,values.sourceLocation("java+field", "", LogPath + "/" + field.name),mapFieldAccesCode(field.access) );
+				// The jvm acces codes specify 15 different modifiers (more then in the Java language)
+				for ( int fs = 0 ; fs < 15 ; fs++ ) { 
+					if ( (field.access & (0x0001 << fs )) != 0 ) {
+						this.insert(this.modifiers,values.sourceLocation("java+field", "", LogPath + "/" + field.name),mapFieldAccesCode(1<<fs) );
+					}
+				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
