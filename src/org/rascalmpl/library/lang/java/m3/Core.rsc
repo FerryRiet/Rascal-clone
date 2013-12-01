@@ -100,7 +100,14 @@ public M3 createM3FromJar(loc jarFile) {
     jarName = substring(jarName, findLast(jarName, "/")+1);
     loc jarLoc = |jar:///|;
     jarLoc.authority = jarName;
-    return composeJavaM3(jarLoc , { createM3FromJarClass(jarClass) | loc jarClass <- crawl(jarFile, "class") });
+    
+    M3 m3Model = composeJavaM3(jarLoc , { createM3FromJarClass(jarClass) | loc jarClass <- crawl(jarFile, "class") });
+    //This does not cover constructor overrides yet
+    rel[loc, loc] allInherits = (m3Model@extends + m3Model@implements)+;
+    m3Model@methodOverrides = { <cM, pM> | <cC, cM> <- m3Model@containment, <pC, pM> <- m3Model@containment,
+        <cC, pC> in allInherits, substring(cM.path, findLast(cM.path, "/") + 1) == substring(pM.path, findLast(pM.path, "/") + 1) };
+    
+    return m3Model;
 }
 
 public M3 includeJarRelations(M3 project, set[M3] jarRels = {}) {
