@@ -2,26 +2,18 @@ package org.rascalmpl.library.lang.java.m3.internal;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.net.URLDecoder;
 import java.util.List;
 
 import org.eclipse.imp.pdb.facts.IConstructor;
 import org.eclipse.imp.pdb.facts.ISourceLocation;
 import org.eclipse.imp.pdb.facts.type.TypeStore;
-import org.objectweb.asm.AnnotationVisitor;
-import org.objectweb.asm.Attribute;
-import org.eclipse.jdt.core.*;
+import org.eclipse.jdt.core.Signature;
 import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.FieldNode;
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.FieldVisitor;
-import org.objectweb.asm.tree.LocalVariableNode;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.signature.*;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
+import org.objectweb.asm.signature.SignatureVisitor;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.MethodNode;
 import org.rascalmpl.interpreter.IEvaluatorContext;
 
 public class JarConverter extends M3Converter {
@@ -43,7 +35,8 @@ public class JarConverter extends M3Converter {
                 return jarLoc.getPath().substring(jarLoc.getPath().indexOf("!") + 1);
         }
 
-        public void convert(ISourceLocation jarLoc, IEvaluatorContext ctx) {
+        @SuppressWarnings("unchecked")
+		public void convert(ISourceLocation jarLoc, IEvaluatorContext ctx) {
 
                 this.jarFile = extractJarName(jarLoc);
                 this.ClassFile = extractClassName(jarLoc);
@@ -156,7 +149,24 @@ public class JarConverter extends M3Converter {
                 case Opcodes.ACC_STATIC:
                         return constructModifierNode("static");
                 case Opcodes.ACC_FINAL:
-                        return constructModifierNode("final");
+                    	return constructModifierNode("final");
+                case Opcodes.ACC_SYNCHRONIZED:
+                    	return constructModifierNode("synchronized");
+                case Opcodes.ACC_ABSTRACT:
+            			return constructModifierNode("abstract");
+                case Opcodes.ACC_VOLATILE:
+            			return constructModifierNode("volatile");
+                case Opcodes.ACC_TRANSIENT:
+            			return constructModifierNode("transient");
+                case Opcodes.ACC_NATIVE:
+            			return constructModifierNode("native");
+                		
+                
+                // TODO: GIT PULL/MERGE  ORIGINAL RASCAL VERSION > 2013-11-30 (PaulKlint commit)  
+                //case Opcodes.ACC_DEPRECATED:
+                //		return constructModifierNode("deprecated");
+                    
+                        
                 default:
                         return constructModifierNode("public");
                 }
@@ -185,7 +195,8 @@ public class JarConverter extends M3Converter {
                 }
         }
         
-        private class SigVisitor extends SignatureVisitor{
+        @SuppressWarnings("unused")
+		private class SigVisitor extends SignatureVisitor{
 
                 public SigVisitor(int api) {
                         super(api);
