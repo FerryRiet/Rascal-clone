@@ -8,7 +8,8 @@ import demo::common::Crawl;
 
 
 public void printAllJarM3(loc jarFolder) =
-    [printJarM3(|jar:///| + jarFile.path + "!") | jarFile <- crawl3(jarFolder, "jar"), bprintln(jarFile)];
+    [printJarM3(|jar:///| + jarFile.path + "!") | jarFile <- crawl3(jarFolder, "jar")/*, bprintln(jarFile)*/];
 
 public void printJarM3(loc jarFile) =
-    iprintToFile(|file:///| + replaceLast(jarFile.path, ".jar!", ".txt"), createM3FromJar(jarFile));
+    //iprintToFile(|file:///| + replaceLast(jarFile.path, ".jar!", ".txt"), createM3FromJar(jarFile));
+    writeBinaryValueFile(|file:///| + replaceLast(jarFile.path, ".jar!", ".bin.m3"), createM3FromJar(jarFile));

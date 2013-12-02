@@ -38,6 +38,8 @@ public class JarConverter extends M3Converter
 		}
 	}
 
+	private enum EOpcodeType { CLASS, METHOD, FIELD };
+	
 	class Jar2M3ClassVisitor extends ClassVisitor
 	{
 		private final String jarFileName;
@@ -64,21 +66,24 @@ public class JarConverter extends M3Converter
 			return jarLoc.getPath().substring(jarLoc.getPath().indexOf("!") + 1);
 		}
 		
-		private void processAccess(int access, String scheme, String authority, String path)
+		private void processAccess(int access, String scheme, String authority, String path, JarConverter.EOpcodeType opcodeType)
 			throws URISyntaxException
 		{
 			for(int i = 0; i < 15; i ++)
 			{
 				if((access & (0x0001 << i)) != 0)
 				{
-					JarConverter.this.insert(JarConverter.this.modifiers,
-						values.sourceLocation(scheme, authority, path),
-						mapFieldAccessCode(0x0001 << i));
+					IConstructor cons = mapFieldAccessCode(0x0001 << i, opcodeType);
+					if(cons != null)
+					{
+						JarConverter.this.insert(JarConverter.this.modifiers,
+							values.sourceLocation(scheme, authority, path), cons);
+					}
 				}
 			}
 		}
 		
-		private IConstructor mapFieldAccessCode(int code)
+		private IConstructor mapFieldAccessCode(int code, JarConverter.EOpcodeType opcodeType)
 		{
 			switch (code)
 			{
@@ -93,6 +98,7 @@ public class JarConverter extends M3Converter
 				case Opcodes.ACC_FINAL:
 					return constructModifierNode("final");
 				case Opcodes.ACC_SYNCHRONIZED:
+					if(opcodeType == JarConverter.EOpcodeType.CLASS) return null;
 					return constructModifierNode("synchronized");
 				case Opcodes.ACC_ABSTRACT:
 					return constructModifierNode("abstract");
@@ -106,7 +112,7 @@ public class JarConverter extends M3Converter
 				//case Opcodes.ACC_DEPRECATED:
 				//		return constructModifierNode("deprecated");
 				default:
-					return constructModifierNode("public");
+					return null;
 			}
 		}
 
@@ -114,7 +120,7 @@ public class JarConverter extends M3Converter
 		public void visit(int version, int access, String name,
 			String signature, String superName, String[] interfaces)
 		{
-			className = name;
+			className = name.replaceFirst("$", "/");
 			
 			try
 			{
@@ -129,7 +135,7 @@ public class JarConverter extends M3Converter
 					values.sourceLocation(classScheme, "/" + className, ""),
 					values.sourceLocation(classScheme, "/" + superName, ""));
 				
-				processAccess(access, classScheme, "/" + className, "");
+				processAccess(access, classScheme, "/" + className, "", JarConverter.EOpcodeType.CLASS);
 				
 				for (String iFace : interfaces)
 				{
@@ -160,7 +166,20 @@ public class JarConverter extends M3Converter
 		@Override
 		public void visitInnerClass(String name, String outerName, String innerName, int access)
 		{
-			System.out.println("INNER" + name + " " + outerName + " " + innerName + " " + access);
+			System.out.println("INNER" + name + " " + outerName + "(" + outerName == className + ")"
+				+ " " + innerName + " " + access);
+			
+			try
+			{
+				JarConverter.this.insert(JarConverter.this.containment,
+					values.sourceLocation(classScheme, "/" + className, ""), //outerName
+					values.sourceLocation("java+class", "/" + name.replaceFirst("$", "/"), ""));
+			}
+			catch (URISyntaxException e)
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 
 		@Override
@@ -182,7 +201,7 @@ public class JarConverter extends M3Converter
 		{
 			try
 			{
-				System.out.println("Field Signature: " + name + desc + signature);
+				System.out.println("FIELD: " + name + desc + signature);
 				
 				JarConverter.this.insert(JarConverter.this.declarations,
 					values.sourceLocation("java+field", "/" + className, "/" + name),
@@ -192,7 +211,7 @@ public class JarConverter extends M3Converter
 					values.sourceLocation(classScheme, "/" + className, ""),
 					values.sourceLocation("java+field", "/" + className, "/" + name));
 				
-				processAccess(access, "java+field", "/" + className, "/" + name);
+				processAccess(access, "java+field", "/" + className, "/" + name, JarConverter.EOpcodeType.FIELD);
 			}
 			catch (URISyntaxException e)
 			{
@@ -216,7 +235,7 @@ public class JarConverter extends M3Converter
 			sig = sig.replaceAll("/", ".");
 			sig = sig.substring(0, sig.lastIndexOf(")") + 1);
 			
-			System.out.println("Method Signature: " + name + " " + desc + " " + signature);
+			System.out.println("METHOD: " + name + " " + desc + " " + signature);
 			
 			try
 			{
@@ -228,7 +247,16 @@ public class JarConverter extends M3Converter
 					values.sourceLocation(classScheme, "/" + className, ""),
 					values.sourceLocation(methodType, "/" + className, "/" + name + sig));
 				
-				processAccess(access, methodType, "/" + className, "/" + name + sig);
+				processAccess(access, methodType, "/" + className, "/" + name + sig, JarConverter.EOpcodeType.METHOD);
+				
+				// Deprecated method emit typedependency Deprecated.
+				// <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>,
+                if((access & Opcodes.ACC_DEPRECATED) != 0)
+                {
+                	JarConverter.this.insert(JarConverter.this.typeDependency,
+            			values.sourceLocation(classScheme, "/" + className, "/" + name + sig),
+            			values.sourceLocation("java+interface:///java/lang/Deprecated"));
+                }
 			}
 			catch (URISyntaxException e)
 			{
