@@ -14,6 +14,7 @@ import org.objectweb.asm.signature.SignatureVisitor;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.InnerClassNode;
 import org.rascalmpl.interpreter.IEvaluatorContext;
 
 public class JarConverter extends M3Converter {
@@ -25,7 +26,8 @@ public class JarConverter extends M3Converter {
         private String ClassFile;
         private String LogPath;
         private String classScheme;
-
+        private String className;
+        
         JarConverter(TypeStore typeStore) {
                 super(typeStore);
         }
@@ -53,26 +55,26 @@ public class JarConverter extends M3Converter {
                         ClassNode cn = new ClassNode();
 
                         cr.accept(cn, ClassReader.SKIP_DEBUG);
-
+                        this.className = cn.name.replace("$", "/");
                         if((cn.access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
                         else this.classScheme = "java+class";
 
                         this.insert(
                                         this.declarations,
                                         values.sourceLocation(classScheme, "",  "/"
-                                                        + cn.name), values.sourceLocation(jarFile + "!" + ClassFile));
+                                                        + className), values.sourceLocation(jarFile + "!" + ClassFile));
 
                         this.insert(
                                         this.extendsRelations,
                                         values.sourceLocation(classScheme, "",  "/"
-                                                        + cn.name),
+                                                        + className),
                                         values.sourceLocation(classScheme, "", cn.superName));
 
                         for ( int fs = 0 ; fs < 15 ; fs++ ) { 
                             if ( (cn.access & (0x0001 << fs )) != 0 ) {
                             	    IConstructor cons =  mapFieldAccesCode(0x0001<<fs,CLASSE) ;
                             		if (cons != null )
-                            			this.insert(this.modifiers,values.sourceLocation(classScheme, "",  "/" + cn.name),cons );                                
+                            			this.insert(this.modifiers,values.sourceLocation(classScheme, "",  "/" + className),cons );                                
                             }
                         }
                         
@@ -82,11 +84,15 @@ public class JarConverter extends M3Converter {
                                 this.insert(
                                                 this.implementsRelations,
                                                 values.sourceLocation(classScheme, "", "/"
-                                                                + cn.name),
+                                                                + className),
                                                 values.sourceLocation("java+interface", ClassFile, "/"
                                                                 + iface));
                         }
-                        
+                        for (int fs = 0; fs < cn.innerClasses.size(); fs ++){
+                        	InnerClassNode a = (InnerClassNode) cn.innerClasses.get(fs);
+                        	String parsedName = a.name.replace("$", "/");
+                        	 this.insert(this.containment,values.sourceLocation(classScheme, "", "/" + className ), values.sourceLocation(classScheme,"","/" + parsedName));        
+                        }                        
                         emitMethods(cn.methods);
                         emitFields(cn.fields);
 
