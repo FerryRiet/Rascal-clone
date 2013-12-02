@@ -30,14 +30,14 @@ public class JarConverter extends M3Converter
 				.getInputStream(jarLoc.getURI()));
 			
 			cr.accept(new Jar2M3ClassVisitor(jarLoc), ClassReader.SKIP_DEBUG);
-			
-			System.out.println("END");
 		}
 		catch (IOException e)
 		{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
+		System.out.println("END");
 	}
 
 	class Jar2M3ClassVisitor extends ClassVisitor
@@ -45,6 +45,7 @@ public class JarConverter extends M3Converter
 		private final String jarFileName;
 		private final String classFileName;
 		private String className;
+		private String classScheme;
 
 		public Jar2M3ClassVisitor(ISourceLocation jarLoc)
 		{
@@ -100,6 +101,19 @@ public class JarConverter extends M3Converter
 					return constructModifierNode("static");
 				case Opcodes.ACC_FINAL:
 					return constructModifierNode("final");
+				case Opcodes.ACC_SYNCHRONIZED:
+					return constructModifierNode("synchronized");
+				case Opcodes.ACC_ABSTRACT:
+					return constructModifierNode("abstract");
+				case Opcodes.ACC_VOLATILE:
+					return constructModifierNode("volatile");
+				case Opcodes.ACC_TRANSIENT:
+					return constructModifierNode("transient");
+				case Opcodes.ACC_NATIVE:
+					return constructModifierNode("native");
+				// TODO: GIT PULL/MERGE  ORIGINAL RASCAL VERSION > 2013-11-30 (PaulKlint commit)  
+				//case Opcodes.ACC_DEPRECATED:
+				//		return constructModifierNode("deprecated");
 				default:
 					return constructModifierNode("public");
 			}
@@ -113,21 +127,24 @@ public class JarConverter extends M3Converter
 			
 			try
 			{
+				classScheme = "java+class";
+				if((access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
+
 				JarConverter.this.insert(JarConverter.this.declarations,
-					values.sourceLocation("java+class", className, ""),
+					values.sourceLocation(classScheme, "/" + className, ""),
 					values.sourceLocation(jarFileName + "!" + classFileName));
 				
 				JarConverter.this.insert(JarConverter.this.extendsRelations,
-					values.sourceLocation("java+class", className, ""),
-					values.sourceLocation("java+class", superName, ""));
+					values.sourceLocation(classScheme, "/" + className, ""),
+					values.sourceLocation(classScheme, "/" + superName, ""));
 				
-				processAccess(access, "java+class", className, "");
+				processAccess(access, classScheme, "/" + className, "");
 				
 				for (String iFace : interfaces)
 				{
 					JarConverter.this.insert(JarConverter.this.implementsRelations,
-						values.sourceLocation("java+class", className, ""),
-						values.sourceLocation("java+interface", iFace, ""));
+						values.sourceLocation(classScheme, "/" + className, ""),
+						values.sourceLocation("java+interface", "/" + iFace, ""));
 				}
 			}
 			catch (URISyntaxException e)
@@ -146,7 +163,13 @@ public class JarConverter extends M3Converter
 		@Override
 		public void visitOuterClass(String owner, String name, String desc)
 		{
-			// TODO Auto-generated method stub
+			System.out.println(owner + " " + name + " " + desc);
+		}
+		
+		@Override
+		public void visitInnerClass(String name, String outerName, String innerName, int access)
+		{
+			System.out.println(name + " " + outerName + " " + innerName + " " + access);
 		}
 
 		@Override
@@ -163,13 +186,6 @@ public class JarConverter extends M3Converter
 		}
 
 		@Override
-		public void visitInnerClass(String name, String outerName,
-			String innerName, int access)
-		{
-			// TODO Auto-generated method stub
-		}
-
-		@Override
 		public FieldVisitor visitField(int access, String name, String desc,
 			String signature, Object value)
 		{
@@ -178,14 +194,14 @@ public class JarConverter extends M3Converter
 				System.out.println("Field Signature: " + name + desc + signature);
 				
 				JarConverter.this.insert(JarConverter.this.declarations,
-					values.sourceLocation("java+field", className, "/" + name),
+					values.sourceLocation("java+field", "/" + className, "/" + name),
 					values.sourceLocation(jarFileName + "!" + classFileName));
 				
 				JarConverter.this.insert(JarConverter.this.containment,
-					values.sourceLocation("java+class", className, ""),
-					values.sourceLocation("java+field", className, "/" + name));
+					values.sourceLocation(classScheme, "/" + className, ""),
+					values.sourceLocation("java+field", "/" + className, "/" + name));
 				
-				processAccess(access, "java+field", className, "/" + name);
+				processAccess(access, "java+field", "/" + className, "/" + name);
 			}
 			catch (URISyntaxException e)
 			{
@@ -198,33 +214,31 @@ public class JarConverter extends M3Converter
 		public MethodVisitor visitMethod(int access, String name, String desc,
 			String signature, String[] exceptions)
 		{
-			String methodType;
+			String methodType = "java+method";
 			if(name.equalsIgnoreCase("<init>"))
 			{
 				methodType = "java+constructor";
 				name = className;
+				System.out.println("CONSTRUCTOR");
 			}
-			else
-			{
-				methodType = "java+method";
-			}
+
 			String sig = signature == null ? desc : signature;
 			sig = sig.replaceAll("/", ".");
-			sig = sig.substring(0, sig.length() - 1);
+			sig = sig.substring(0, sig.lastIndexOf(")") + 1);
 			
 			System.out.println("Method Signature: " + name + " " + desc + " " + signature);
 			
 			try
 			{
 				JarConverter.this.insert(JarConverter.this.declarations,
-					values.sourceLocation(methodType, className, "/" + name + sig),
+					values.sourceLocation(methodType, "/" + className, "/" + name + sig),
 					values.sourceLocation(jarFileName + "!" + classFileName));
 				
 				JarConverter.this.insert(JarConverter.this.containment,
-					values.sourceLocation("java+class", className, ""),
-					values.sourceLocation(methodType, className, "/" + name + sig));
+					values.sourceLocation(classScheme, "/" + className, ""),
+					values.sourceLocation(methodType, "/" + className, "/" + name + sig));
 				
-				processAccess(access, methodType, className, "/" + name + sig);
+				processAccess(access, methodType, "/" + className, "/" + name + sig);
 			}
 			catch (URISyntaxException e)
 			{
