@@ -209,6 +209,14 @@ public class JarConverter extends M3Converter
 					values.sourceLocation("java+field", "/" + className, "/" + name));
 				
 				processAccess(access, "java+field", "/" + className, "/" + name, JarConverter.EOpcodeType.FIELD);
+				
+				// <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>
+				if((access & Opcodes.ACC_DEPRECATED) != 0)
+                {
+                	JarConverter.this.insert(JarConverter.this.annotations,
+            			values.sourceLocation("java+field", "/" + className, "/" + name),
+            			values.sourceLocation("java+interface:///java/lang/Deprecated"));
+                }
 			}
 			catch (URISyntaxException e)
 			{
@@ -250,7 +258,7 @@ public class JarConverter extends M3Converter
 				// <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>,
                 if((access & Opcodes.ACC_DEPRECATED) != 0)
                 {
-                	JarConverter.this.insert(JarConverter.this.typeDependency,
+                	JarConverter.this.insert(JarConverter.this.annotations,
             			values.sourceLocation(classScheme, "/" + className, "/" + name + sig),
             			values.sourceLocation("java+interface:///java/lang/Deprecated"));
                 }
