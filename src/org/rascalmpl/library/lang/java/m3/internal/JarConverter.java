@@ -17,6 +17,10 @@ import org.objectweb.asm.tree.MethodNode;
 import org.rascalmpl.interpreter.IEvaluatorContext;
 
 public class JarConverter extends M3Converter {
+		private final int CLASSE  = 0 ;
+		private final int METHODE = 1 ;
+		private final int FIELDE  = 2 ;
+		
         private String jarFile;
         private String ClassFile;
         private String LogPath;
@@ -66,8 +70,9 @@ public class JarConverter extends M3Converter {
 
                         for ( int fs = 0 ; fs < 15 ; fs++ ) { 
                             if ( (cn.access & (0x0001 << fs )) != 0 ) {
-                                    this.insert(this.modifiers,values.sourceLocation(classScheme, "",  "/"
-                                            + cn.name),mapFieldAccesCode(0x0001<<fs) );                                
+                            	    IConstructor cons =  mapFieldAccesCode(0x0001<<fs,CLASSE) ;
+                            		if (cons != null )
+                            			this.insert(this.modifiers,values.sourceLocation(classScheme, "",  "/" + cn.name),cons );                                
                             }
                         }
                         
@@ -81,10 +86,6 @@ public class JarConverter extends M3Converter {
                                                 values.sourceLocation("java+interface", ClassFile, "/"
                                                                 + iface));
                         }
-
-                        // TODO: output class modifiers
-                        // cn.access check original M3 model 
-                        
                         
                         emitMethods(cn.methods);
                         emitFields(cn.fields);
@@ -126,7 +127,7 @@ public class JarConverter extends M3Converter {
                 this.insert(this.declarations,values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"),values.sourceLocation(jarFile + "!" + ClassFile));        
                 for ( int fs = 0 ; fs < 15 ; fs++ ) { 
                         if ( (access & (0x0001 << fs )) != 0 ) {
-                                this.insert(this.modifiers,values.sourceLocation(type, "" ,LogPath + "/" + name + "(" + sig + ")"),mapFieldAccesCode(0x0001<<fs) );                                
+                                this.insert(this.modifiers,values.sourceLocation(type, "" ,LogPath + "/" + name + "(" + sig + ")"),mapFieldAccesCode(0x0001<<fs,METHODE) );                                
                         }
                 }
                 // Containment of methods.
@@ -141,7 +142,7 @@ public class JarConverter extends M3Converter {
                 return args;                
         }
         
-        private IConstructor mapFieldAccesCode(int code) {
+        private IConstructor mapFieldAccesCode(int code, int where) {
                 // Check the original M3 implementation for possible IConstructor types.
                 switch (code) {
                 case Opcodes.ACC_PUBLIC:
@@ -155,6 +156,7 @@ public class JarConverter extends M3Converter {
                 case Opcodes.ACC_FINAL:
                     	return constructModifierNode("final");
                 case Opcodes.ACC_SYNCHRONIZED:
+                		if ( where == CLASSE )  return null ;
                     	return constructModifierNode("synchronized");
                 case Opcodes.ACC_ABSTRACT:
             			return constructModifierNode("abstract");
@@ -190,7 +192,7 @@ public class JarConverter extends M3Converter {
                                 // The jvm acces codes specify 15 different modifiers (more then in the Java language itself)
                                 for ( int fs = 0 ; fs < 15 ; fs++ ) { 
                                         if ( (field.access & (0x0001 << fs )) != 0 ) {
-                                                this.insert(this.modifiers,values.sourceLocation("java+field", "", LogPath + "/" + field.name),mapFieldAccesCode(1<<fs) );
+                                                this.insert(this.modifiers,values.sourceLocation("java+field", "", LogPath + "/" + field.name),mapFieldAccesCode(1<<fs,FIELDE) );
                                         }
                                 }
                         }
