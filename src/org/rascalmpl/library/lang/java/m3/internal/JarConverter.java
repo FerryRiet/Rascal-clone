@@ -20,6 +20,7 @@ public class JarConverter extends M3Converter {
         private String jarFile;
         private String ClassFile;
         private String LogPath;
+        private String classScheme;
 
         JarConverter(TypeStore typeStore) {
                 super(typeStore);
@@ -42,6 +43,8 @@ public class JarConverter extends M3Converter {
                 this.ClassFile = extractClassName(jarLoc);
                 this.LogPath = this.ClassFile.replace(".class", "");
                 if(this.LogPath.contains("$")){ this.LogPath = LogPath.substring(0, LogPath.indexOf("$"));}
+                this.classScheme = "java+class";
+                if((cn.access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
                 try {
                         ClassReader cr = new ClassReader(ctx.getResolverRegistry()
                                         .getInputStream(jarLoc.getURI()));
@@ -51,18 +54,18 @@ public class JarConverter extends M3Converter {
 
                         this.insert(
                                         this.declarations,
-                                        values.sourceLocation("java+class", "",  "/"
+                                        values.sourceLocation(classScheme, "",  "/"
                                                         + cn.name), values.sourceLocation(jarFile + "!" + ClassFile));
 
                         this.insert(
                                         this.extendsRelations,
-                                        values.sourceLocation("java+class", "",  "/"
+                                        values.sourceLocation(classScheme, "",  "/"
                                                         + cn.name),
-                                        values.sourceLocation("java+class", "", cn.superName));
+                                        values.sourceLocation(classScheme, "", cn.superName));
 
                         for ( int fs = 0 ; fs < 15 ; fs++ ) { 
                             if ( (cn.access & (0x0001 << fs )) != 0 ) {
-                                    this.insert(this.modifiers,values.sourceLocation("java+class", "",  "/"
+                                    this.insert(this.modifiers,values.sourceLocation(classScheme, "",  "/"
                                             + cn.name),mapFieldAccesCode(0x0001<<fs) );                                
                             }
                         }
@@ -72,7 +75,7 @@ public class JarConverter extends M3Converter {
                                 String iface = (String) cn.interfaces.get(i);
                                 this.insert(
                                                 this.implementsRelations,
-                                                values.sourceLocation("java+class", "", "/"
+                                                values.sourceLocation(classScheme, "", "/"
                                                                 + cn.name),
                                                 values.sourceLocation("java+interface", ClassFile, "/"
                                                                 + iface));
@@ -126,7 +129,7 @@ public class JarConverter extends M3Converter {
                         }
                 }
                 // Containment of methods.
-                this.insert(this.containment,values.sourceLocation("java+class", "", LogPath ), values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"));        
+                this.insert(this.containment,values.sourceLocation(classScheme, "", LogPath ), values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"));        
         }
         
         private String extractSignature(String sig){
@@ -181,7 +184,7 @@ public class JarConverter extends M3Converter {
                                 this.insert(this.declarations,values.sourceLocation("java+field","" , LogPath+ "/"+ field.name), values.sourceLocation(jarFile + "!" + ClassFile));
 
                                 // Containment of fields. 
-                                this.insert(this.containment,values.sourceLocation("java+class", "", LogPath ), values.sourceLocation("java+field","" , LogPath+ "/"+ field.name));        
+                                this.insert(this.containment,values.sourceLocation(classScheme, "", LogPath ), values.sourceLocation("java+field","" , LogPath+ "/"+ field.name));        
 
                                 // The jvm acces codes specify 15 different modifiers (more then in the Java language itself)
                                 for ( int fs = 0 ; fs < 15 ; fs++ ) { 
