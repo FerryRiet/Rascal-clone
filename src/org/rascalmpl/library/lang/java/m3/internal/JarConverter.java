@@ -51,18 +51,18 @@ public class JarConverter extends M3Converter {
 
                         this.insert(
                                         this.declarations,
-                                        values.sourceLocation("java+class", "", LogPath + "/"
+                                        values.sourceLocation("java+class", "",  "/"
                                                         + cn.name), values.sourceLocation(jarFile + "!" + ClassFile));
 
                         this.insert(
                                         this.extendsRelations,
-                                        values.sourceLocation("java+class", "", LogPath + "/"
+                                        values.sourceLocation("java+class", "",  "/"
                                                         + cn.name),
                                         values.sourceLocation("java+class", "", cn.superName));
 
                         for ( int fs = 0 ; fs < 15 ; fs++ ) { 
                             if ( (cn.access & (0x0001 << fs )) != 0 ) {
-                                    this.insert(this.modifiers,values.sourceLocation("java+class", "", LogPath + "/"
+                                    this.insert(this.modifiers,values.sourceLocation("java+class", "",  "/"
                                             + cn.name),mapFieldAccesCode(0x0001<<fs) );                                
                             }
                         }
@@ -72,7 +72,7 @@ public class JarConverter extends M3Converter {
                                 String iface = (String) cn.interfaces.get(i);
                                 this.insert(
                                                 this.implementsRelations,
-                                                values.sourceLocation("java+class", "", LogPath + "/"
+                                                values.sourceLocation("java+class", "", "/"
                                                                 + cn.name),
                                                 values.sourceLocation("java+interface", ClassFile, "/"
                                                                 + iface));
