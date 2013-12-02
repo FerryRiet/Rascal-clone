@@ -131,7 +131,14 @@ public class JarConverter extends M3Converter {
                         }
                 }
                 // Containment of methods.
-                this.insert(this.containment,values.sourceLocation(classScheme, "", LogPath ), values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"));        
+                this.insert(this.containment,values.sourceLocation(classScheme, "", LogPath ), values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"));     
+                
+                
+                // Deprecated method emit typedependency Deprecated.
+                if ( (access & 0x20000) == 0x20000 ) 
+                	this.insert(this.typeDependency ,values.sourceLocation(classScheme, "", LogPath + "/" + name + "(" + sig + ")"), values.sourceLocation("java+interface:///java/lang/Deprecated"));     
+                // <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>,
+                	
         }
         
         private String extractSignature(String sig){
