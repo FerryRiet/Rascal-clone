@@ -208,6 +208,10 @@ public class JarConverter extends M3Converter {
                                                 this.insert(this.modifiers,values.sourceLocation("java+field", "", LogPath + "/" + field.name),mapFieldAccesCode(1<<fs,FIELDE) );
                                         }
                                 }
+                                if ( (field.access & 0x20000) == 0x20000 ) 
+                                	this.insert(this.typeDependency ,values.sourceLocation("java+field","" , LogPath+ "/"+ field.name), values.sourceLocation("java+interface:///java/lang/Deprecated"));     
+                                // <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>,
+                                
                         }
                 } catch (Exception e) {
                         e.printStackTrace();
