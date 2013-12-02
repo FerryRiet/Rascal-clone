@@ -100,7 +100,8 @@ public M3 createM3FromJar(loc jarFile) {
     jarName = substring(jarName, findLast(jarName, "/")+1);
     loc jarLoc = |jar:///|;
     jarLoc.authority = jarName;
-    return composeJavaM3(jarLoc , { createM3FromJarClass(jarClass) | loc jarClass <- crawl(jarFile, "class") });
+    M3 m3Project = composeJavaM3(jarLoc , { createM3FromJarClass(jarClass) | loc jarClass <- crawl(jarFile, "class") });
+    return fillMethodOverridesFromM3(m3Project);
 }
 
 public M3 includeJarRelations(M3 project, set[M3] jarRels = {}) {
