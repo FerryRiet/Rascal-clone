@@ -108,9 +108,6 @@ public class JarConverter extends M3Converter
 					return constructModifierNode("transient");
 				case Opcodes.ACC_NATIVE:
 					return constructModifierNode("native");
-				// TODO: GIT PULL/MERGE  ORIGINAL RASCAL VERSION > 2013-11-30 (PaulKlint commit)  
-				//case Opcodes.ACC_DEPRECATED:
-				//		return constructModifierNode("deprecated");
 				default:
 					return null;
 			}
@@ -160,13 +157,13 @@ public class JarConverter extends M3Converter
 		@Override
 		public void visitOuterClass(String owner, String name, String desc)
 		{
-			System.out.println("OUTER:" + owner + " " + name + " " + desc);
+			System.out.println("OUTER: " + owner + " " + name + " " + desc);
 		}
 		
 		@Override
 		public void visitInnerClass(String name, String outerName, String innerName, int access)
 		{
-			System.out.println("INNER" + name + " " + outerName + "(" + outerName == className + ")"
+			System.out.println("INNER: " + name + " " + outerName + "(" + outerName == className + ")"
 				+ " " + innerName + " " + access);
 			
 			try
