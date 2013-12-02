@@ -36,8 +36,6 @@ public class JarConverter extends M3Converter
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		System.out.println("END");
 	}
 
 	class Jar2M3ClassVisitor extends ClassVisitor
@@ -67,22 +65,15 @@ public class JarConverter extends M3Converter
 		}
 		
 		private void processAccess(int access, String scheme, String authority, String path)
+			throws URISyntaxException
 		{
 			for(int i = 0; i < 15; i ++)
 			{
 				if((access & (0x0001 << i)) != 0)
 				{
-					try
-					{
-						JarConverter.this.insert(JarConverter.this.modifiers,
-							values.sourceLocation(scheme, authority, path),
-							mapFieldAccessCode(0x0001 << i));
-					}
-					catch (URISyntaxException e)
-					{
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+					JarConverter.this.insert(JarConverter.this.modifiers,
+						values.sourceLocation(scheme, authority, path),
+						mapFieldAccessCode(0x0001 << i));
 				}
 			}
 		}
@@ -219,7 +210,6 @@ public class JarConverter extends M3Converter
 			{
 				methodType = "java+constructor";
 				name = className;
-				System.out.println("CONSTRUCTOR");
 			}
 
 			String sig = signature == null ? desc : signature;
