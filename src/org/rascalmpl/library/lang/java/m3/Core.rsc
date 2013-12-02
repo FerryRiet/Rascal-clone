@@ -27,14 +27,13 @@ import List;
 import util::FileSystem;
 import demo::common::Crawl;
 
-data Modifier = \annotation(loc \ann);
-
 anno rel[loc from, loc to] M3@extends;            // classes extending classes and interfaces extending interfaces
 anno rel[loc from, loc to] M3@implements;         // classes implementing interfaces
 anno rel[loc from, loc to] M3@methodInvocation;   // methods calling each other (including constructors)
 anno rel[loc from, loc to] M3@fieldAccess;        // code using data (like fields)
 anno rel[loc from, loc to] M3@typeDependency;     // using a type literal in some code (types of variables, annotations)
 anno rel[loc from, loc to] M3@methodOverrides;    // which method override which other methods
+anno rel[loc declaration, loc annotation] M3@annotations;
 
 public M3 composeJavaM3(loc id, set[M3] models) {
   m = composeM3(id, models);
@@ -45,6 +44,7 @@ public M3 composeJavaM3(loc id, set[M3] models) {
   m@fieldAccess = {*model@fieldAccess | model <- models};
   m@typeDependency = {*model@typeDependency | model <- models};
   m@methodOverrides = {*model@methodOverrides | model <- models};
+  m@annotations = {*model@annotations | model <- models};
   
   return m;
 }
@@ -100,14 +100,8 @@ public M3 createM3FromJar(loc jarFile) {
     jarName = substring(jarName, findLast(jarName, "/")+1);
     loc jarLoc = |jar:///|;
     jarLoc.authority = jarName;
-    
-    M3 m3Model = composeJavaM3(jarLoc , { createM3FromJarClass(jarClass) | loc jarClass <- crawl(jarFile, "class") });
-    //This does not cover constructor overrides yet
-    rel[loc, loc] allInherits = (m3Model@extends + m3Model@implements)+;
-    m3Model@methodOverrides = { <cM, pM> | <cC, cM> <- m3Model@containment, <pC, pM> <- m3Model@containment,
-        <cC, pC> in allInherits, substring(cM.path, findLast(cM.path, "/") + 1) == substring(pM.path, findLast(pM.path, "/") + 1) };
-    
-    return m3Model;
+    M3 m3Project = composeJavaM3(jarLoc , { createM3FromJarClass(jarClass) | loc jarClass <- crawl(jarFile, "class") });
+    return fillMethodOverridesFromM3(m3Project);
 }
 
 public M3 includeJarRelations(M3 project, set[M3] jarRels = {}) {
@@ -156,6 +150,14 @@ public rel[loc, loc] declaredTopTypes(M3 m)
 
 public rel[loc, loc] declaredSubTypes(M3 m) 
   = {e | tuple[loc lhs, loc rhs] e <- m@containment, isClass(e.rhs)} - declaredTopTypes(m);
+  
+
+public M3 fillMethodOverridesFromM3(M3 m){
+    rel[loc,loc] allRel = m@extends + m@implements;
+    allRel = allRel+;
+	  m@methodOverrides = {<m1,m2> | <c1,m1> <- m@containment, <c2,m2> <- m@containment, <c1,c2> in allRel, substring(m1.path,findLast(m1.path,"/")+1) == substring(m2.path,findLast(m2.path,"/")+1)};
+ 	  return m; 
+}
 
 @memo public set[loc] classes(M3 m) =  {e | e <- m@declarations<name>, isClass(e)};
 @memo public set[loc] interfaces(M3 m) =  {e | e <- m@declarations<name>, isInterface(e)};
