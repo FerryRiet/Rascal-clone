@@ -43,14 +43,15 @@ public class JarConverter extends M3Converter {
                 this.ClassFile = extractClassName(jarLoc);
                 this.LogPath = this.ClassFile.replace(".class", "");
                 if(this.LogPath.contains("$")){ this.LogPath = LogPath.substring(0, LogPath.indexOf("$"));}
-                this.classScheme = "java+class";
-                if((cn.access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
                 try {
                         ClassReader cr = new ClassReader(ctx.getResolverRegistry()
                                         .getInputStream(jarLoc.getURI()));
                         ClassNode cn = new ClassNode();
 
                         cr.accept(cn, ClassReader.SKIP_DEBUG);
+
+                        if((cn.access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
+                        else this.classScheme = "java+class";
 
                         this.insert(
                                         this.declarations,
