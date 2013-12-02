@@ -163,13 +163,13 @@ public class JarConverter extends M3Converter
 		@Override
 		public void visitOuterClass(String owner, String name, String desc)
 		{
-			System.out.println(owner + " " + name + " " + desc);
+			System.out.println("OUTER:" + owner + " " + name + " " + desc);
 		}
 		
 		@Override
 		public void visitInnerClass(String name, String outerName, String innerName, int access)
 		{
-			System.out.println(name + " " + outerName + " " + innerName + " " + access);
+			System.out.println("INNER" + name + " " + outerName + " " + innerName + " " + access);
 		}
 
 		@Override
