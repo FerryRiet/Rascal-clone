@@ -85,7 +85,7 @@ public class JarConverter extends M3Converter {
                                                 this.implementsRelations,
                                                 values.sourceLocation(classScheme, "", "/"
                                                                 + className),
-                                                values.sourceLocation("java+interface", ClassFile, "/"
+                                                values.sourceLocation("java+interface", "", "/"
                                                                 + iface));
                         }
                         for (int fs = 0; fs < cn.innerClasses.size(); fs ++){
