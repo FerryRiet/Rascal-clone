@@ -149,6 +149,14 @@ public rel[loc, loc] declaredTopTypes(M3 m)
 
 public rel[loc, loc] declaredSubTypes(M3 m) 
   = {e | tuple[loc lhs, loc rhs] e <- m@containment, isClass(e.rhs)} - declaredTopTypes(m);
+  
+
+public M3 fillMethodOverridesFromM3(M3 m){
+    rel[loc,loc] allRel = m@extends + m@implements;
+    allRel = allRel+;
+	  m@methodOverrides = {<m1,m2> | <c1,m1> <- m@containment, <c2,m2> <- m@containment, <c1,c2> in allRel, substring(m1.path,findLast(m1.path,"/")+1) == substring(m2.path,findLast(m2.path,"/")+1)};
+ 	  return m; 
+}
 
 @memo public set[loc] classes(M3 m) =  {e | e <- m@declarations<name>, isClass(e)};
 @memo public set[loc] interfaces(M3 m) =  {e | e <- m@declarations<name>, isInterface(e)};
