@@ -48,7 +48,7 @@ public class JarConverter extends M3Converter {
                 this.jarFile = extractJarName(jarLoc);
                 this.ClassFile = extractClassName(jarLoc);
                 this.LogPath = this.ClassFile.replace(".class", "");
-                if(this.LogPath.contains("$")){ this.LogPath = LogPath.substring(0, LogPath.indexOf("$"));}
+                if(this.LogPath.contains("$")){ this.LogPath = LogPath.replace("$","/");}
                 try {
                         ClassReader cr = new ClassReader(ctx.getResolverRegistry()
                                         .getInputStream(jarLoc.getURI()));
@@ -107,7 +107,7 @@ public class JarConverter extends M3Converter {
                 try {
                         for (int i = 0; i < methods.size(); ++i) {
                                 MethodNode method = methods.get(i);
-                                System.out.println(new String("Signature :") + method.name
+                                System.out.println(new String("Signature :") + className + " " +  method.name
                                                 + " " + method.signature + "  " + method.desc);
                                 
                                 if(method.name.contains("<")){
