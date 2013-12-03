@@ -128,7 +128,7 @@ public class JarConverter extends M3Converter
 					values.sourceLocation(classScheme, "/" + className, ""),
 					values.sourceLocation(jarFileName + "!" + classFileName));
 				
-				if(!superName.equalsIgnoreCase("java/lang/Object"))
+				if(superName != null && !superName.equalsIgnoreCase("java/lang/Object"))
 				{
 					JarConverter.this.insert(JarConverter.this.extendsRelations,
 						values.sourceLocation(classScheme, "/" + className, ""),
