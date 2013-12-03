@@ -119,7 +119,7 @@ public M3 createM3FromJar(loc jarFile) {
     	if((c in m3Map) && (sc in m3Map)){
 	    	set[loc] methodSC = methods(m3Map[sc]);
 	    	methodSC = { m | <m,p> <- m3Map[sc]@modifiers, p == \public() || p == \protected()};	
-	    	m3Map[c]@methodOverrides = m3Map[c]@methodOverrides + { <mc,msc> | msc <- methodSC, mc <- methods(m3Map[c]), substring(mc.path,findLast(mc.path,"/")+1) == substring(msc.path,findLast(msc.path,"/")+1)};	
+	    	m3Map[c]@methodOverrides = m3Map[c]@methodOverrides + { <mc,msc> | msc <- methodSC, mc <- methods(m3Map[c]), mc.file == msc.file};	
 	    }
     }
     return composeJavaM3(jarLoc , range(m3Map));

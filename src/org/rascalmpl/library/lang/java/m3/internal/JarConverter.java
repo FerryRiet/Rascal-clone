@@ -48,6 +48,9 @@ public class JarConverter extends M3Converter {
                 this.jarFile = extractJarName(jarLoc);
                 this.ClassFile = extractClassName(jarLoc);
                 this.LogPath = this.ClassFile.replace(".class", "");
+                
+                System.out.println(this.ClassFile);
+                
                 if(this.LogPath.contains("$")){ this.LogPath = LogPath.replace("$","/");}
                 try {
                         ClassReader cr = new ClassReader(ctx.getResolverRegistry()
