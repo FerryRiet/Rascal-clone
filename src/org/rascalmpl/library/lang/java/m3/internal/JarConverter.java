@@ -117,7 +117,7 @@ public class JarConverter extends M3Converter
 		public void visit(int version, int access, String name,
 			String signature, String superName, String[] interfaces)
 		{
-			className = name.replaceFirst("$", "/");
+			className = name.replace("$", "/");
 			
 			try
 			{
@@ -180,7 +180,7 @@ public class JarConverter extends M3Converter
 			{
 				JarConverter.this.insert(JarConverter.this.containment,
 					values.sourceLocation(classScheme, "/" + className, ""), //outerName
-					values.sourceLocation("java+class", "/" + name.replaceFirst("$", "/"), ""));
+					values.sourceLocation("java+class", "/" + name.replace("$", "/"), ""));
 			}
 			catch (URISyntaxException e)
 			{
