@@ -137,6 +137,13 @@ public class JarConverter extends M3Converter
 				
 				processAccess(access, classScheme, "/" + className, "", JarConverter.EOpcodeType.CLASS);
 				
+				if((access & Opcodes.ACC_DEPRECATED) != 0)
+                {
+                	JarConverter.this.insert(JarConverter.this.annotations,
+            			values.sourceLocation(classScheme, "/" + className, ""),
+            			values.sourceLocation("java+interface", "/java/lang/Deprecated", ""));
+                }
+				
 				for (String iFace : interfaces)
 				{
 					JarConverter.this.insert(JarConverter.this.implementsRelations,
@@ -218,7 +225,7 @@ public class JarConverter extends M3Converter
                 {
                 	JarConverter.this.insert(JarConverter.this.annotations,
             			values.sourceLocation("java+field", "/" + className, "/" + name),
-            			values.sourceLocation("java+interface:///java/lang/Deprecated"));
+            			values.sourceLocation("java+interface", "/java/lang/Deprecated", ""));
                 }
 			}
 			catch (URISyntaxException e)
@@ -263,7 +270,7 @@ public class JarConverter extends M3Converter
                 {
                 	JarConverter.this.insert(JarConverter.this.annotations,
             			values.sourceLocation(classScheme, "/" + className, "/" + name + sig),
-            			values.sourceLocation("java+interface:///java/lang/Deprecated"));
+            			values.sourceLocation("java+interface", "/java/lang/Deprecated", ""));
                 }
 			}
 			catch (URISyntaxException e)
