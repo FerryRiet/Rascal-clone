@@ -128,9 +128,12 @@ public class JarConverter extends M3Converter
 					values.sourceLocation(classScheme, "/" + className, ""),
 					values.sourceLocation(jarFileName + "!" + classFileName));
 				
-				JarConverter.this.insert(JarConverter.this.extendsRelations,
-					values.sourceLocation(classScheme, "/" + className, ""),
-					values.sourceLocation(classScheme, "/" + superName, ""));
+				if(!superName.equalsIgnoreCase("java/lang/Object"))
+				{
+					JarConverter.this.insert(JarConverter.this.extendsRelations,
+						values.sourceLocation(classScheme, "/" + className, ""),
+						values.sourceLocation(classScheme, "/" + superName, ""));
+				}
 				
 				processAccess(access, classScheme, "/" + className, "", JarConverter.EOpcodeType.CLASS);
 				
@@ -254,7 +257,7 @@ public class JarConverter extends M3Converter
 				
 				processAccess(access, methodType, "/" + className, "/" + name + sig, JarConverter.EOpcodeType.METHOD);
 				
-				// Deprecated method emit typedependency Deprecated.
+				// Deprecated method emit type dependency Deprecated.
 				// <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>,
                 if((access & Opcodes.ACC_DEPRECATED) != 0)
                 {
