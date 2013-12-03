@@ -79,6 +79,12 @@ public class JarConverter extends M3Converter {
                             }
                         }
                         
+                        // Deprecated method emit type annotation dependency Deprecated.
+                        if ( (cn.access & 0x20000) == 0x20000 ) 
+                        	this.insert(this.annotations ,values.sourceLocation(classScheme, "",  "/" + className), values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));     
+           
+                        
+                        
                         // @implements={<|java+class:///m3startv2/viaInterface|,|java+interface:///m3startv2/m3Interface|>},
                         for (int i = 0; i < cn.interfaces.size(); ++i) {
                                 String iface = (String) cn.interfaces.get(i);
@@ -90,7 +96,10 @@ public class JarConverter extends M3Converter {
                         	InnerClassNode a = (InnerClassNode) cn.innerClasses.get(fs);
                         	String parsedName = a.name.replace("$", "/");
                         	this.insert(this.containment,values.sourceLocation(classScheme, "", "/" + className ), values.sourceLocation(classScheme,"","/" + parsedName));        
-                        }                        
+                        }     
+                        
+                       
+                        
                         emitMethods(cn.methods);
                         emitFields(cn.fields);
 
@@ -139,7 +148,7 @@ public class JarConverter extends M3Converter {
                 
                 // Deprecated method emit type annotation dependency Deprecated.
                 if ( (access & 0x20000) == 0x20000 ) 
-                	this.insert(this.annotations ,values.sourceLocation(classScheme, "", LogPath + "/" + name + "(" + sig + ")"), values.sourceLocation("java+interface:///java/lang/Deprecated"));     
+                	this.insert(this.annotations ,values.sourceLocation(classScheme, "", LogPath + "/" + name + "(" + sig + ")"), values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));     
                 // <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>,
                 	
         }
@@ -207,7 +216,7 @@ public class JarConverter extends M3Converter {
                                 }
                                 // Put deprecated field in the annotations anno.
                                 if ( (field.access & 0x20000) == 0x20000 ) 
-                                	this.insert(this.annotations ,values.sourceLocation("java+field","" , LogPath+ "/"+ field.name), values.sourceLocation("java+interface:///java/lang/Deprecated"));     
+                                	this.insert(this.annotations ,values.sourceLocation("java+field","" , LogPath+ "/"+ field.name), values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));     
                                 // <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>,
                                 
                         }
