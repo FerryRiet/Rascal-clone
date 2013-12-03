@@ -13,6 +13,6 @@ public void printAllJarM3(loc jarFolder)
 
 public void printJarM3(loc jarFile)
 {
-    //iprintToFile(|file:///| + replaceLast(jarFile.path, ".jar!", ".txt"), createM3FromJar(jarFile));
+    //iprintToFile(jarFile[scheme = "file"][extension = "txt"], createM3FromJar(jarFile));
     writeBinaryValueFile(jarFile[scheme = "file"][extension = "bin.m3"], createM3FromJar(jarFile));
 }
