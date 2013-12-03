@@ -4,12 +4,15 @@ module lang::java::m3::JarTests
 import Prelude;
 import util::FileSystem;
 import lang::java::m3::Core;
-import demo::common::Crawl;
 
 
-public void printAllJarM3(loc jarFolder) =
-    [printJarM3(|jar:///| + jarFile.path + "!") | jarFile <- crawl3(jarFolder, "jar")/*, bprintln(jarFile)*/];
+public void printAllJarM3(loc jarFolder)
+{
+    { printJarM3(l[scheme = "jar"][path = l.path + "!"]) | /file(l) <- crawl(jarFolder), l.extension == "jar" };
+}
 
-public void printJarM3(loc jarFile) =
-    //iprintToFile(|file:///| + replaceLast(jarFile.path, ".jar!", ".txt"), createM3FromJar(jarFile));
-    writeBinaryValueFile(|file:///| + replaceLast(jarFile.path, ".jar!", ".bin.m3"), createM3FromJar(jarFile));
+public void printJarM3(loc jarFile)
+{
+    //iprintToFile(jarFile[scheme = "file"][extension = "txt"], createM3FromJar(jarFile));
+    writeBinaryValueFile(jarFile[scheme = "file"][extension = "bin.m3"], createM3FromJar(jarFile));
+}
