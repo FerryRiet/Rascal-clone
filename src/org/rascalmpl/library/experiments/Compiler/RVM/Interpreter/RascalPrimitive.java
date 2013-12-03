@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map.Entry;
-import java.util.SortedMap;
 import java.util.Stack;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
@@ -467,6 +466,10 @@ public enum RascalPrimitive {
 	elm_notin_rel,
 	elm_notin_map,
 	
+	// 	num
+	
+	num_to_real,
+	
 	// parse
 	
 	parse,
@@ -513,10 +516,12 @@ public enum RascalPrimitive {
 
 	// range
 	
-	range_create_int,
-	range_step_create_int,
-	range_create_real,
-	range_step_create_real,
+//	range_create_int,
+//	range_step_create_int,
+//	range_create_real,
+//	range_step_create_real,
+	
+
 	
 	// remainder
 	
@@ -1253,6 +1258,13 @@ public enum RascalPrimitive {
 		return org.rascalmpl.interpreter.utils.StringUtils.unescapeSingleQuoteAndBackslash(arg);
 	}
 	
+	private static String $preprocess(String arg) {
+		arg = org.rascalmpl.interpreter.utils.StringUtils.unquote(arg);
+		// don't unescape ' yet
+		arg = org.rascalmpl.interpreter.utils.StringUtils.unescapeBase(arg);
+		return arg;
+	}
+	
 	private static IString $processString(IString s){
 		return vf.string($removeMargins(s.getValue()));
 	}
@@ -1761,8 +1773,12 @@ public enum RascalPrimitive {
 		assert arity == 2;
 		IValue left = (stack[sp - 2] instanceof Boolean) ? vf.bool((Boolean)stack[sp - 2]) : (IValue)stack[sp - 2];
 		IValue right = (stack[sp - 1] instanceof Boolean) ? vf.bool((Boolean)stack[sp - 1]) : (IValue)stack[sp - 1];
-		stack[sp - 2] = left.isEqual(right);
-		return sp - 1;
+		if(left.getType().isNumber() && right.getType().isNumber()){
+			return num_equal_num(stack, sp, arity);
+		} else {
+			stack[sp - 2] = left.isEqual(right);
+			return sp - 1;
+		}
 	}
 	
 	public static int type_equal_type(Object[] stack, int sp, int arity) {
@@ -2487,6 +2503,9 @@ public enum RascalPrimitive {
 		String label = ((IString) stack[sp - 1]).getValue();
 		try {
 			stack[sp - 2] = val.asAnnotatable().getAnnotation(label);
+			if(stack[sp - 2] == null) {
+				throw RuntimeExceptions.noSuchAnnotation(label, null, new ArrayList<Frame>());
+			}
 			return sp - 1;
 		} catch (FactTypeUseException e) {
 			throw RuntimeExceptions.noSuchAnnotation(label, null, new ArrayList<Frame>());
@@ -2498,16 +2517,23 @@ public enum RascalPrimitive {
 		IValue val = (IValue) stack[sp - 3];
 		String label = ((IString) stack[sp - 2]).getValue();
 		IValue repl = (IValue) stack[sp - 1];
-		stack[sp - 2] = val.asAnnotatable().setAnnotation(label, repl);
-		return sp - 1;
+		stack[sp - 3] = val.asAnnotatable().setAnnotation(label, repl);
+		return sp - 2;
 	}
 	
+	/*
+	 * Field access
+	 */
 	
 	public static int tuple_field_access(Object[] stack, int sp, int arity) {
 		assert arity == 2;
 		stack[sp - 2] = ((ITuple) stack[sp - 2]).get(((IString) stack[sp - 1]).getValue());
 		return sp - 1;
 	}
+	
+	/*
+	 * Field update
+	 */
 	
 	public static int tuple_field_update(Object[] stack, int sp, int arity) {
 		assert arity == 3;
@@ -2528,9 +2554,6 @@ public enum RascalPrimitive {
 		return sp - arity + 1;
 	}
 	
-	/*
-	 * fieldUpdate
-	 */
 	public static int adt_field_update(Object[] stack, int sp, int arity) {
 		assert arity == 3;
 		stack[sp - 3] = ((IConstructor) stack[sp - 3]).set(((IString) stack[sp - 2]).getValue(),
@@ -4270,8 +4293,8 @@ public enum RascalPrimitive {
 	public static int list_replace(Object[] stack, int sp, int arity) {
 		assert arity == 5;
 		IList lst = (IList) stack[sp - 5];
+		SliceDescriptor sd = $makeSliceDescriptor($getInt((IValue) stack[sp - 4]), $getInt((IValue) stack[sp - 3]), $getInt((IValue) stack[sp - 2]), lst.length());
 		IList repl = (IList) stack[sp - 1];
-		SliceDescriptor sd = $makeSliceDescriptor(stack, sp, arity, lst.length());
 		stack[sp - 5] = lst.replace(sd.first, sd.second, sd.end, repl);
 		return sp - 4;
 	}
@@ -4279,8 +4302,8 @@ public enum RascalPrimitive {
 	public static int str_replace(Object[] stack, int sp, int arity) {
 		assert arity == 5;
 		IString str = (IString) stack[sp - 5];
+		SliceDescriptor sd = $makeSliceDescriptor($getInt((IValue) stack[sp - 4]), $getInt((IValue) stack[sp - 3]), $getInt((IValue) stack[sp - 2]), str.length());
 		IString repl = (IString) stack[sp - 1];
-		SliceDescriptor sd = $makeSliceDescriptor(stack, sp, arity, str.length());
 		stack[sp - 5] = str.replace(sd.first, sd.second, sd.end, repl);
 		return sp - 4;
 	}
@@ -4288,8 +4311,8 @@ public enum RascalPrimitive {
 	public static int node_replace(Object[] stack, int sp, int arity) {
 		assert arity == 5;
 		INode node = (INode) stack[sp - 5];
+		SliceDescriptor sd = $makeSliceDescriptor($getInt((IValue) stack[sp - 4]), $getInt((IValue) stack[sp - 3]), $getInt((IValue) stack[sp - 2]), node.arity());
 		IList repl = (IList) stack[sp - 1];
-		SliceDescriptor sd = $makeSliceDescriptor(stack, sp, arity, node.arity());
 		stack[sp - 5] = node.replace(sd.first, sd.second, sd.end, repl);
 		return sp - 4;
 	}
@@ -4302,7 +4325,7 @@ public enum RascalPrimitive {
 		assert arity == 4;
 		
 		IList lst = (IList) stack[sp - 4];
-		stack[sp - 4] = $makeSlice(lst, $makeSliceDescriptor(stack, sp, arity, lst.length()));
+		stack[sp - 4] = $makeSlice(lst, $makeSliceDescriptor($getInt((IValue) stack[sp - 3]), $getInt((IValue) stack[sp - 2]), $getInt((IValue) stack[sp - 1]), lst.length()));
 		return sp - 3;
 	}
 	
@@ -4310,7 +4333,7 @@ public enum RascalPrimitive {
 		assert arity == 4;
 		
 		IString str = (IString) stack[sp - 4];
-		stack[sp - 4] = $makeSlice(str, $makeSliceDescriptor(stack, sp, arity, str.length()));
+		stack[sp - 4] = $makeSlice(str, $makeSliceDescriptor($getInt((IValue) stack[sp - 3]), $getInt((IValue) stack[sp - 2]), $getInt((IValue) stack[sp - 1]), str.length()));
 		return sp - 3;
 	}
 	
@@ -4334,17 +4357,11 @@ public enum RascalPrimitive {
 		assert arity == 4;
 		
 		INode node = (INode) stack[sp - 4];
-		stack[sp - 4] = $makeSlice(node, $makeSliceDescriptor(stack, sp, arity, node.arity()));
+		stack[sp - 4] = $makeSlice(node, $makeSliceDescriptor($getInt((IValue) stack[sp - 3]), $getInt((IValue) stack[sp - 2]), $getInt((IValue) stack[sp - 1]), node.arity()));
 		return sp - 3;
 	}
-	
-	public static SliceDescriptor $makeSliceDescriptor(Object[] stack, int sp, int arity, int len) {
-		assert arity == 4;
-		
-		Integer first = $getInt((IValue) stack[sp - 3]);
-	
-		Integer second = $getInt((IValue) stack[sp - 2]);
-		Integer end = $getInt((IValue) stack[sp - 1]);
+
+	public static SliceDescriptor $makeSliceDescriptor(Integer first, Integer second, Integer end, int len) {
 		
 		int firstIndex = 0;
 		int secondIndex = 1;
@@ -4983,6 +5000,16 @@ public enum RascalPrimitive {
 	}
 	
 	/*
+	 * num
+	 */
+	
+	public static int num_to_real(Object[] stack, int sp, int arity) {
+		assert arity == 1;
+		stack[sp - 1] = ((INumber) stack[sp - 1]).toReal();
+		return sp;
+	}
+	
+	/*
 	 * parse
 	 */
 	
@@ -5567,88 +5594,88 @@ public enum RascalPrimitive {
 		return sp;
 	}
 	
-	public static int range_create_int(Object[] stack, int sp, int arity) {
-		assert arity == 2;
-		int from = ((IInteger) stack[sp - 2]).intValue();
-		int to = ((IInteger) stack[sp - 1]).intValue();
-		int second = from < to ? from + 1 : from - 1;
-
-		stack[sp - 2] = $range_step_int(from, second, to);
-		return sp - 1;
-	}
+//	public static int range_create_int(Object[] stack, int sp, int arity) {
+//		assert arity == 2;
+//		int from = ((IInteger) stack[sp - 2]).intValue();
+//		int to = ((IInteger) stack[sp - 1]).intValue();
+//		int second = from < to ? from + 1 : from - 1;
+//
+//		stack[sp - 2] = $range_step_int(from, second, to);
+//		return sp - 1;
+//	}
 	
-	public static int range_step_create_int(Object[] stack, int sp, int arity) {
-		assert arity == 3;
-		int from = ((IInteger) stack[sp - 3]).intValue();
-		int second = ((IInteger) stack[sp - 2]).intValue();
-		int to = ((IInteger) stack[sp - 1]).intValue();
-
-		stack[sp - 3] = $range_step_int(from, second, to);
-		return sp - 2;
-	}
+//	public static int range_step_create_int(Object[] stack, int sp, int arity) {
+//		assert arity == 3;
+//		int from = ((IInteger) stack[sp - 3]).intValue();
+//		int second = ((IInteger) stack[sp - 2]).intValue();
+//		int to = ((IInteger) stack[sp - 1]).intValue();
+//
+//		stack[sp - 3] = $range_step_int(from, second, to);
+//		return sp - 2;
+//	}
 	
-	public static IList $range_step_int(int from, int second, int to) {
-		IListWriter w = vf.listWriter();
-
-		int diff =  second - from;
-
-		if(from < to && diff > 0){
-			while(from < to){
-				w.append(vf.integer(from));
-				from += diff;
-			}
-		} else if(from >= to && diff < 0){
-			while(from > to){
-				w.append(vf.integer(from));
-				from += diff;
-			}
-		}
-		return w.done();
-	}
+//	public static IList $range_step_int(int from, int second, int to) {
+//		IListWriter w = vf.listWriter();
+//
+//		int diff =  second - from;
+//
+//		if(from < to && diff > 0){
+//			while(from < to){
+//				w.append(vf.integer(from));
+//				from += diff;
+//			}
+//		} else if(from >= to && diff < 0){
+//			while(from > to){
+//				w.append(vf.integer(from));
+//				from += diff;
+//			}
+//		}
+//		return w.done();
+//	}
 	
-	private static double $toDouble(Object o){
-		return (o instanceof IInteger) ? ((IInteger) o).intValue() : 
-										(o instanceof IReal) ?  ((IReal)o).doubleValue() : ((IRational) o).doubleValue();
-	}
+//	private static double $toDouble(Object o){
+//		return (o instanceof IInteger) ? ((IInteger) o).intValue() : 
+//										(o instanceof IReal) ?  ((IReal)o).doubleValue() : ((IRational) o).doubleValue();
+//	}
 	
-	public static int range_create_real(Object[] stack, int sp, int arity) {
-		assert arity == 2;
-		double from = $toDouble(stack[sp - 2]);
-		double to =  $toDouble(stack[sp - 1]);
-		double second = from < to ? from + 1 : from - 1;
-
-		stack[sp - 2] = $range_step_real(from, second, to);
-		return sp - 1;
-	}
-	
-	public static int range_step_create_real(Object[] stack, int sp, int arity) {
-		assert arity == 3;
-		double from =  $toDouble(stack[sp - 3]);
-		double second =  $toDouble(stack[sp - 2]);
-		double to =  $toDouble(stack[sp - 1]);
-
-		stack[sp - 3] = $range_step_real(from, second, to);
-		return sp - 2;
-	}
-	
-	public static IList $range_step_real(double from, double second, double to) {
-		IListWriter w = vf.listWriter();
-
-		double diff =  second - from;
-
-		if(from < to && diff > 0){
-			while(from < to){
-				w.append(vf.real(from));
-				from += diff;
-			}
-		} else if(from >= to && diff < 0){
-			while(from > to){
-				w.append(vf.real(from));
-				from += diff;
-			}
-		}
-		return w.done();
-	}
+//	public static int range_create_real(Object[] stack, int sp, int arity) {
+//		assert arity == 2;
+//		double from = $toDouble(stack[sp - 2]);
+//		double to =  $toDouble(stack[sp - 1]);
+//		double second = from < to ? from + 1 : from - 1;
+//
+//		stack[sp - 2] = $range_step_real(from, second, to);
+//		return sp - 1;
+//	}
+//	
+//	public static int range_step_create_real(Object[] stack, int sp, int arity) {
+//		assert arity == 3;
+//		double from =  $toDouble(stack[sp - 3]);
+//		double second =  $toDouble(stack[sp - 2]);
+//		double to =  $toDouble(stack[sp - 1]);
+//
+//		stack[sp - 3] = $range_step_real(from, second, to);
+//		return sp - 2;
+//	}
+//	
+//	public static IList $range_step_real(double from, double second, double to) {
+//		IListWriter w = vf.listWriter();
+//
+//		double diff =  second - from;
+//
+//		if(from < to && diff > 0){
+//			while(from < to){
+//				w.append(vf.real(from));
+//				from += diff;
+//			}
+//		} else if(from >= to && diff < 0){
+//			while(from > to){
+//				w.append(vf.real(from));
+//				from += diff;
+//			}
+//		}
+//		return w.done();
+//	}
 
 	/*
 	 * Run this class as a Java program to compare the list of enumeration constants with the implemented methods in this class.
