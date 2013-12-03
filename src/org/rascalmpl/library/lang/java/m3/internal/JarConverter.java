@@ -59,17 +59,15 @@ public class JarConverter extends M3Converter {
                         if((cn.access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
                         else this.classScheme = "java+class";
 
-                        this.insert(
-                                        this.declarations,
-                                        values.sourceLocation(classScheme, "",  "/"
-                                                        + className), values.sourceLocation(jarFile + "!" + ClassFile));
-
-                        this.insert(
-                                        this.extendsRelations,
-                                        values.sourceLocation(classScheme, "",  "/"
-                                                        + className),
-                                        values.sourceLocation(classScheme, "", cn.superName));
-
+                        this.insert(this.declarations,values.sourceLocation(classScheme, "",  "/" + className), values.sourceLocation(jarFile + "!" + ClassFile));
+                        
+                        
+                        if ( cn.superName != null ) {
+                        	    //System.out.println(cn.superName);
+                            	if ( cn.superName.equals("java/lang/Object") == false )
+                        		this.insert(this.extendsRelations,values.sourceLocation(classScheme, "",  "/" + className),values.sourceLocation(classScheme, "", cn.superName));
+                        }
+                        
                         for ( int fs = 0 ; fs < 15 ; fs++ ) { 
                             if ( (cn.access & (0x0001 << fs )) != 0 ) {
                             	    IConstructor cons =  mapFieldAccesCode(0x0001<<fs,CLASSE) ;
@@ -81,17 +79,14 @@ public class JarConverter extends M3Converter {
                         // @implements={<|java+class:///m3startv2/viaInterface|,|java+interface:///m3startv2/m3Interface|>},
                         for (int i = 0; i < cn.interfaces.size(); ++i) {
                                 String iface = (String) cn.interfaces.get(i);
-                                this.insert(
-                                                this.implementsRelations,
-                                                values.sourceLocation(classScheme, "", "/"
-                                                                + className),
-                                                values.sourceLocation("java+interface", "", "/"
-                                                                + iface));
+                                //System.out.println(iface);
+                                this.insert(this.implementsRelations,values.sourceLocation(classScheme, "", "/"+ className),values.sourceLocation("java+interface", "", "/" + iface));
                         }
+                        
                         for (int fs = 0; fs < cn.innerClasses.size(); fs ++){
                         	InnerClassNode a = (InnerClassNode) cn.innerClasses.get(fs);
                         	String parsedName = a.name.replace("$", "/");
-                        	 this.insert(this.containment,values.sourceLocation(classScheme, "", "/" + className ), values.sourceLocation(classScheme,"","/" + parsedName));        
+                        	this.insert(this.containment,values.sourceLocation(classScheme, "", "/" + className ), values.sourceLocation(classScheme,"","/" + parsedName));        
                         }                        
                         emitMethods(cn.methods);
                         emitFields(cn.fields);
@@ -107,8 +102,7 @@ public class JarConverter extends M3Converter {
                 try {
                         for (int i = 0; i < methods.size(); ++i) {
                                 MethodNode method = methods.get(i);
-                                System.out.println(new String("Signature :") + className + " " +  method.name
-                                                + " " + method.signature + "  " + method.desc);
+                                //System.out.println(new String("Signature :") + className + " " +  method.name + " " + method.signature + "  " + method.desc);
                                 
                                 if(method.name.contains("<")){
                                         String name = LogPath.substring(LogPath.lastIndexOf("/"));
@@ -140,7 +134,7 @@ public class JarConverter extends M3Converter {
                 this.insert(this.containment,values.sourceLocation(classScheme, "", LogPath ), values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"));     
                 
                 
-                // Deprecated method emit typedependency Deprecated.
+                // Deprecated method emit type annotation dependency Deprecated.
                 if ( (access & 0x20000) == 0x20000 ) 
                 	this.insert(this.annotations ,values.sourceLocation(classScheme, "", LogPath + "/" + name + "(" + sig + ")"), values.sourceLocation("java+interface:///java/lang/Deprecated"));     
                 // <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>,
