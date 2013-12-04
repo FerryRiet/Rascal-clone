@@ -103,7 +103,7 @@ public M3 createM3FromJar(loc jarFile) {
     
     map[str,M3] m3Map = (classPathToStr(jc): createM3FromJarClass(jc) | /file(jc) <- crawl(jarFile), jc.extension == "class");
     
-    rel[str,str] inheritsFrom = +{ ({<c.path, i.path> | <c, i> <- m3@implements} + {<c.path, i.path> | <c, i> <- m3@extends}) | m3 <- range(m3Map) };
+    rel[str,str] inheritsFrom = { *({<c.path, i.path> | <c, i> <- m3@implements} + {<c.path, i.path> | <c, i> <- m3@extends}) | m3 <- range(m3Map) }+;
     
     for(<c, sc> <- inheritsFrom, c in m3Map && sc in m3Map) {
 	        set[loc] methodSC = { m | <m, p> <- m3Map[sc]@modifiers, (p == \public() || p == \protected())  && m.scheme == "java+method" };	
