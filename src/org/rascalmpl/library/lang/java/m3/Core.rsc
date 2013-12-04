@@ -25,7 +25,6 @@ import Node;
 import List;
 
 import util::FileSystem;
-import demo::common::Crawl;
 
 anno rel[loc from, loc to] M3@extends;            // classes extending classes and interfaces extending interfaces
 anno rel[loc from, loc to] M3@implements;         // classes implementing interfaces
