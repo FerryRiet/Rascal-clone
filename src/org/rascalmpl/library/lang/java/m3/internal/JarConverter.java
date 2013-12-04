@@ -187,13 +187,13 @@ public class JarConverter extends M3Converter {
             			return constructModifierNode("native");
                 		
                 
-                // TODO: GIT PULL/MERGE  ORIGINAL RASCAL VERSION > 2013-11-30 (PaulKlint commit)  
+                // TODO: GIT PULL/MERGE  ORIGINAL RASCAL VERSION < 2013-11-30 (Shahin commit)  
                 //case Opcodes.ACC_DEPRECATED:
                 //		return constructModifierNode("deprecated");
                     
                         
                 default:
-                        return constructModifierNode("public");
+                        return null;
                 }
         }
 
