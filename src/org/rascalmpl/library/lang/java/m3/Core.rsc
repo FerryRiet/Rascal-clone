@@ -106,7 +106,7 @@ public M3 createM3FromJar(loc jarFile) {
         + {<c.path, i.path> | <c, i> <- m3@extends}) | m3 <- range(m3Map) }+;
     
     for(<c, sc> <- inheritsFrom, c in m3Map && sc in m3Map) {
-	        set[loc] methodSC = { m | <m, p> <- m3Map[sc]@modifiers, p == \public() || p == \protected() };	
+	        set[loc] methodSC = { m | <m, p> <- m3Map[sc]@modifiers, (p == \public() || p == \protected()) && (m.scheme == "java+method" || m.scheme == "java+constructor") };	
 	        m3Map[c]@methodOverrides += { <mc, msc> | msc <- methodSC, mc <- methods(m3Map[c]), mc.file == msc.file };	
     }
     
@@ -114,7 +114,7 @@ public M3 createM3FromJar(loc jarFile) {
 }
 
 private str classPathToStr(loc jarClass) {
-    return substring(jarClass.path, findLast(jarClass.path,"!") + 1, findLast(jarClass.path, "."));
+    return substring(jarClass.path,findLast(jarClass.path,"!")+1,findLast(jarClass.path,"."));
 }
 
 public M3 includeJarRelations(M3 project, set[M3] jarRels = {}) {
