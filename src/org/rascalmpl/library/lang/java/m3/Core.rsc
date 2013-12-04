@@ -103,8 +103,7 @@ public M3 createM3FromJar(loc jarFile) {
     
     map[str,M3] m3Map = (classPathToStr(jc): createM3FromJarClass(jc) | /file(jc) <- crawl(jarFile), jc.extension == "class");
     
-    rel[str,str] inheritsFrom = { *({<c.path, i.path> | <c, i> <- m3@implements}
-        + {<c.path, i.path> | <c, i> <- m3@extends}) | m3 <- range(m3Map) }+;
+    rel[str,str] inheritsFrom = +{ ({<c.path, i.path> | <c, i> <- m3@implements} + {<c.path, i.path> | <c, i> <- m3@extends}) | m3 <- range(m3Map) };
     
     for(<c, sc> <- inheritsFrom, c in m3Map && sc in m3Map) {
 	        set[loc] methodSC = { m | <m, p> <- m3Map[sc]@modifiers, (p == \public() || p == \protected())  && m.scheme == "java+method" };	
@@ -114,9 +113,9 @@ public M3 createM3FromJar(loc jarFile) {
     return composeJavaM3(jarLoc , range(m3Map));
 }
 
-	private str classPathToStr(loc jarClass) {
-	    return substring(jarClass.path,findLast(jarClass.path,"!")+1,findLast(jarClass.path,"."));
-	}
+private str classPathToStr(loc jarClass) {
+	return substring(jarClass.path,findLast(jarClass.path,"!")+1,findLast(jarClass.path,"."));
+}
 
 public M3 includeJarRelations(M3 project, set[M3] jarRels = {}) {
   set[M3] rels = jarRels;
