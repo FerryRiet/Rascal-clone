@@ -106,7 +106,7 @@ public M3 createM3FromJar(loc jarFile) {
         + {<c.path, i.path> | <c, i> <- m3@extends}) | m3 <- range(m3Map) }+;
     
     for(<c, sc> <- inheritsFrom, c in m3Map && sc in m3Map) {
-	        set[loc] methodSC = { m | <m, p> <- m3Map[sc]@modifiers, (p == \public() || p == \protected()) && (m.scheme == "java+method" || m.scheme == "java+constructor") };	
+	        set[loc] methodSC = { m | <m, p> <- m3Map[sc]@modifiers, (p == \public() || p == \protected()) && m.scheme == "java+method"  };	
 	        m3Map[c]@methodOverrides += { <mc, msc> | msc <- methodSC, mc <- methods(m3Map[c]), mc.file == msc.file };	
     }
     
