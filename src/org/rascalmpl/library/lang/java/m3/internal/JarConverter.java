@@ -148,7 +148,7 @@ public class JarConverter extends M3Converter {
                 
                 // Deprecated method emit type annotation dependency Deprecated.
                 if ( (access & 0x20000) == 0x20000 ) 
-                	this.insert(this.annotations ,values.sourceLocation(classScheme, "", LogPath + "/" + name + "(" + sig + ")"), values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));     
+                	this.insert(this.annotations ,values.sourceLocation("java+method", "", LogPath + "/" + name + "(" + sig + ")"), values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));     
                 // <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>,
                 	
         }
