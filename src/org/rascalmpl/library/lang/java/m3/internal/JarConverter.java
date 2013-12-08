@@ -13,6 +13,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.signature.SignatureVisitor;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.InnerClassNode;
 import org.rascalmpl.interpreter.IEvaluatorContext;
@@ -133,6 +134,9 @@ public class JarConverter extends M3Converter {
                 String sig ;
                 if( signature != null) {
                         sig = extractSignature(signature);
+                        //TypeVariables
+                        SignatureReader sr = new SignatureReader(signature);
+                        sr.accept(new SigVisitor(Opcodes.ASM4));
                 }else {
                         sig = extractSignature(desc);
                 }        
@@ -225,7 +229,6 @@ public class JarConverter extends M3Converter {
                 }
         }
         
-        @SuppressWarnings("unused")
 		private class SigVisitor extends SignatureVisitor{
 
                 public SigVisitor(int api) {
@@ -235,7 +238,7 @@ public class JarConverter extends M3Converter {
                 
                 public void visitFormalTypeParameter(String name){
                         try {
-                                System.out.println(name);
+                                //System.out.println(name);
                                 JarConverter.this.insert(JarConverter.this.declarations,values.sourceLocation("java+typeVariable","",LogPath + "/" + name),values.sourceLocation(jarFile + "!" + ClassFile) );
                         } catch (URISyntaxException e) {
                                 // TODO Auto-generated catch block
@@ -244,7 +247,7 @@ public class JarConverter extends M3Converter {
                 }
                 
                 public void visitBaseType(char descriptor){
-                        System.out.println(descriptor);
+                        //System.out.println(descriptor);
                 }
                 
         }
