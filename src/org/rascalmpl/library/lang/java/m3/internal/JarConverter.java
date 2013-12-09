@@ -206,6 +206,12 @@ public class JarConverter extends M3Converter {
                 try {
                         for (int i = 0; i < fields.size(); ++i) {
                                 FieldNode field = fields.get(i);
+				
+				if(className.contains(field.desc.substring(1,field.desc.length()-1) + "/")){
+                                	if(field.name.startsWith("this$"))
+                                		break;
+                                }
+				
                                 //System.out.println("Debug......." + field.name);
                                 this.insert(this.declarations,values.sourceLocation("java+field","" , LogPath+ "/"+ field.name), values.sourceLocation(jarFile + "!" + ClassFile));
 
