@@ -102,12 +102,11 @@ public M3 createM3FromJar(loc jarFile) {
     
     map[str,M3] m3Map = (classPathToStr(jc): createM3FromJarClass(jc) | /file(jc) <- crawl(jarFile), jc.extension == "class");
     
-    rel[str,str] inheritsFrom = { *({<c.path, i.path> | <c, i> <- m3@implements}
-        + {<c.path, i.path> | <c, i> <- m3@extends}) | m3 <- range(m3Map) }+;
+    rel[str,str] inheritsFrom = { *({<c.path, i.path> | <c, i> <- m3@implements} + {<c.path, i.path> | <c, i> <- m3@extends}) | m3 <- range(m3Map) }+;
     
     for(<c, sc> <- inheritsFrom, c in m3Map && sc in m3Map) {
-	        set[loc] methodSC = { m | <m, p> <- m3Map[sc]@modifiers, (p == \public() || p == \protected()) && (m.scheme == "java+method" || m.scheme == "java+constructor") };	
-	        m3Map[c]@methodOverrides += { <mc, msc> | msc <- methodSC, mc <- methods(m3Map[c]), mc.file == msc.file };	
+	        set[loc] methodSC = { m | <m, p> <- m3Map[sc]@modifiers, (p == \public() || p == \protected()) && m.scheme == "java+method"  };	
+	        m3Map[c]@methodOverrides += { <mc, msc> | msc <- methodSC, mc <- omethods(m3Map[c]), mc.file == msc.file };	
     }
     
     return composeJavaM3(jarLoc , range(m3Map));
@@ -173,6 +172,9 @@ public rel[loc, loc] declaredSubTypes(M3 m)
 @memo public set[loc] parameters(M3 m)  = {e | e <- m@declarations<name>, isParameter(e)};
 @memo public set[loc] fields(M3 m) = {e | e <- m@declarations<name>, isField(e)};
 @memo public set[loc] methods(M3 m) = {e | e <- m@declarations<name>, isMethod(e)};
+
+// omethods only methods without constructors
+@memo public set[loc] omethods(M3 m) = {e | e <- m@declarations<name>, e.scheme == "java+method" };
 
 public set[loc] elements(M3 m, loc parent) = { e | <parent, e> <- m@containment };
 
