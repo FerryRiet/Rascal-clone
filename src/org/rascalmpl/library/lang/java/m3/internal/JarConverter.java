@@ -59,10 +59,12 @@ public class JarConverter extends M3Converter {
                         ClassNode cn = new ClassNode();
 
                         cr.accept(cn, ClassReader.SKIP_DEBUG);
+
                         this.className = cn.name.replace("$", "/");
                         if((cn.access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
                         else this.classScheme = "java+class";
 
+                        this.insert(this.containment, values.sourceLocation(classScheme, "",  "/" + className), values.sourceLocation("java+CompilationUnit" , "" , "/" + jarLoc.getURI()));
                         this.insert(this.declarations,values.sourceLocation(classScheme, "",  "/" + className), values.sourceLocation(jarFile + "!" + ClassFile));
                         
                         
@@ -98,8 +100,7 @@ public class JarConverter extends M3Converter {
                         	String parsedName = a.name.replace("$", "/");
                         	this.insert(this.containment,values.sourceLocation(classScheme, "", "/" + className ), values.sourceLocation(classScheme,"","/" + parsedName));        
                         }     
-                        
-                       
+                
                         
                         emitMethods(cn.methods);
                         emitFields(cn.fields);
@@ -216,7 +217,7 @@ public class JarConverter extends M3Converter {
                         for (int i = 0; i < fields.size(); ++i) {
                                 FieldNode field = fields.get(i);
 				
-				if(className.contains(field.desc.substring(1,field.desc.length()-1) + "/")){
+					if(className.contains(field.desc.substring(1,field.desc.length()-1) + "/")){
                                 	if(field.name.startsWith("this$"))
                                 		break;
                                 }
