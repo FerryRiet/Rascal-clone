@@ -64,7 +64,7 @@ public class JarConverter extends M3Converter {
                         if((cn.access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
                         else this.classScheme = "java+class";
 
-                        this.insert(this.containment, values.sourceLocation(classScheme, "",  "/" + className), values.sourceLocation("java+CompilationUnit" , "" , "/" + jarLoc.getURI()));
+                        this.insert(this.containment, values.sourceLocation(classScheme, "",  "/" + className), values.sourceLocation("java+compilationUnit" , "" , "/" + jarLoc.getURI()));
                         this.insert(this.declarations,values.sourceLocation(classScheme, "",  "/" + className), values.sourceLocation(jarFile + "!" + ClassFile));
                         
                         
