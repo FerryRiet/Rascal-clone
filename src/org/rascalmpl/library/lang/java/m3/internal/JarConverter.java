@@ -49,8 +49,9 @@ public class JarConverter extends M3Converter {
                 this.jarFile = extractJarName(jarLoc);
                 this.ClassFile = extractClassName(jarLoc);
                 this.LogPath = this.ClassFile.replace(".class", "");
+                String packageName ;
                 
-                System.out.println(this.ClassFile);
+                //System.out.println(this.ClassFile);
                 
                 if(this.LogPath.contains("$")){ this.LogPath = LogPath.replace("$","/");}
                 try {
@@ -65,8 +66,14 @@ public class JarConverter extends M3Converter {
                         else this.classScheme = "java+class";
 
                         this.insert(this.containment, values.sourceLocation(classScheme, "",  "/" + className), values.sourceLocation("java+compilationUnit" , "" , "/" + jarLoc.getURI()));
-                        this.insert(this.declarations,values.sourceLocation(classScheme, "",  "/" + className), values.sourceLocation(jarFile + "!" + ClassFile));
+                        packageName = LogPath.substring(0,LogPath.lastIndexOf("/")) ;
                         
+                        this.insert(this.containment, values.sourceLocation("java+package" , "",  "/" + packageName), values.sourceLocation("java+compilationUnit" , "" , "/" + jarLoc.getURI()));
+                        this.insert(this.containment, values.sourceLocation("java+compilationUnit" , "" , "/" + jarLoc.getURI()),values.sourceLocation("java+class" , "",  "/" + LogPath) );
+
+                        // <|java+package:///Main|,|java+compilationUnit:///src/Main/BaseInt.java|>,
+
+                        this.insert(this.declarations,values.sourceLocation(classScheme, "",  "/" + className), values.sourceLocation(jarFile + "!" + ClassFile));
                         
                         if ( cn.superName != null ) {
                         	    //System.out.println(cn.superName);
