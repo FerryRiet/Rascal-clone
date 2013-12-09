@@ -138,12 +138,32 @@ public class JarConverter extends M3Converter
         	}
         	throw new RuntimeException("t is null");
         }
+		
+		private String eliminateOutterClass(String desc)
+		{
+			//Find the end of the first class argument
+			int semi = desc.indexOf(';');
+			
+			//Create the possible path
+			if(semi > 0)
+			{
+				String outter = desc.substring(desc.indexOf('(') + 2, semi) + "$";
+				
+				//if the first argument is contained in the class path, remove it
+				if(classFileName.contains(outter))
+				{
+					return "(" + desc.substring(semi + 1);
+				}
+			}
+			
+			return desc;
+		}
 
 		@Override
 		public void visit(int version, int access, String name,
 			String signature, String superName, String[] interfaces)
 		{
-			className = name.replace("$", "/");
+			className = name.replace('$', '/');
 			classScheme = "java+class";
 			if((access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
 			
@@ -164,7 +184,7 @@ public class JarConverter extends M3Converter
 					values.sourceLocation(classScheme, "",  "/" + className),
 					values.sourceLocation("java+compilationUnit", "", "/jar:///" + jarFileName));
 				
-				String packageName = className.substring(0, className.lastIndexOf("/"));
+				String packageName = className.contains("/") ? className.substring(0, className.lastIndexOf("/")) : "";
 				// <|java+package:///Main|,|java+compilationUnit:///src/Main/BaseInt.java|>,
                 JarConverter.this.insert(JarConverter.this.containment,
             		values.sourceLocation("java+package", "", "/" + packageName),
@@ -191,15 +211,14 @@ public class JarConverter extends M3Converter
 			}
 			catch (URISyntaxException e)
 			{
-				// TODO Auto-generated catch block
-				throw new RuntimeException("Should not happen", e);
+				e.printStackTrace();
 			}
 		}
 
 		@Override
 		public void visitSource(String source, String debug)
 		{
-			// TODO Auto-generated method stub
+			
 		}
 
 		@Override
@@ -218,11 +237,10 @@ public class JarConverter extends M3Converter
 			{
 				JarConverter.this.insert(JarConverter.this.containment,
 					values.sourceLocation(classScheme, "", "/" + className), //outerName
-					values.sourceLocation("java+class", "", "/" + name.replace("$", "/")));
+					values.sourceLocation("java+class", "", "/" + name.replace('$', '/')));
 			}
 			catch (URISyntaxException e)
 			{
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -230,14 +248,13 @@ public class JarConverter extends M3Converter
 		@Override
 		public AnnotationVisitor visitAnnotation(String desc, boolean visible)
 		{
-			// TODO Auto-generated method stub
 			return null;
 		}
 
 		@Override
 		public void visitAttribute(Attribute attr)
 		{
-			// TODO Auto-generated method stub
+			
 		}
 
 		@Override
@@ -245,7 +262,7 @@ public class JarConverter extends M3Converter
 			String signature, Object value)
 		{
 			if(desc.startsWith("L") && name.startsWith("this$")
-				&& className.contains(desc.substring(1, desc.length() - 1) + "/"))
+				&& className.contains(desc.substring(1, desc.length() - 1).replace('$', '/') + "/"))
 			{
         		return null;
             }
@@ -274,7 +291,7 @@ public class JarConverter extends M3Converter
 			}
 			catch (URISyntaxException e)
 			{
-				throw new RuntimeException("Should not happen", e);
+				e.printStackTrace();
 			}
 			return null;
 		}
@@ -288,6 +305,7 @@ public class JarConverter extends M3Converter
 			{
 				methodType = "java+constructor";
 				name = className;
+				desc = eliminateOutterClass(desc);
 			}
 
 //			String sig = signature == null ? desc : signature;
@@ -329,13 +347,16 @@ public class JarConverter extends M3Converter
                 }
                 
 				//Loop over all parameters in the signature
-				String[] params = sig.replaceAll("(", "").replaceAll(")", "").split(",");
-				for(int i = 0; i < params.length; i++)
-				{
-					JarConverter.this.insert(JarConverter.this.typeDependency,
-					values.sourceLocation(methodType, "", "/" + className + "/" + name + "(" + sig + ")" + "/" + params[i] + i),
-					values.sourceLocation("java+PrimitiveType", "", params[i]));
-				}
+                if(sig != null && !sig.isEmpty())
+                {
+					String[] params = sig.replace("(",  "").replace(")", "").split(",");
+					for(int i = 0; i < params.length; i++)
+					{
+						JarConverter.this.insert(JarConverter.this.typeDependency,
+						values.sourceLocation(methodType, "", "/" + className + "/" + name + "(" + sig + ")" + "/" + params[i] + i),
+						values.sourceLocation("java+PrimitiveType", "", params[i]));
+					}
+                }
 				
 				//Return type
 				if(methodType.equals("java+constructor"))
@@ -346,7 +367,8 @@ public class JarConverter extends M3Converter
 				}
 				else
 				{
-					String rType = Signature.toString(signature == null ? desc : signature).substring(0, sig.indexOf(' '));
+					String rType = Signature.toString(signature == null ? desc : signature);
+					rType = rType.substring(0, rType.indexOf(' '));
 					JarConverter.this.insert(JarConverter.this.typeDependency,
 						values.sourceLocation("java+method", "", "/" + className + "/" + name + sig),
 						values.sourceLocation(getParameterTypeScheme(rType), "", rType));
@@ -354,8 +376,7 @@ public class JarConverter extends M3Converter
 			}
 			catch (URISyntaxException e)
 			{
-				// TODO Auto-generated catch block
-				throw new RuntimeException("Should not happen", e);
+				e.printStackTrace();
 			}
 			return null;
 		}
@@ -383,7 +404,6 @@ public class JarConverter extends M3Converter
 				}
 				catch (URISyntaxException e)
 				{
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
