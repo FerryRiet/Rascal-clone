@@ -209,10 +209,16 @@ public class JarConverter extends M3Converter
 		public FieldVisitor visitField(int access, String name, String desc,
 			String signature, Object value)
 		{
+			if(className.contains(desc.substring(1, desc.length() - 1) + "/")
+				&& name.startsWith("this$"))
+			{
+        		return null;
+            }
+			
+			System.out.println("FIELD: " + name + desc + signature);
+			
 			try
 			{
-				System.out.println("FIELD: " + name + desc + signature);
-				
 				JarConverter.this.insert(JarConverter.this.declarations,
 					values.sourceLocation("java+field", "", "/" + className + "/" + name),
 					values.sourceLocation(jarFileName + "!" + classFileName));
@@ -286,6 +292,15 @@ public class JarConverter extends M3Converter
             			values.sourceLocation(classScheme, "", "/" + className + "/" + name + sig),
             			values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));
                 }
+                
+				//Loop over all parameters in the signature
+				String[] params = sig.replaceAll("(", "").replaceAll(")", "").split(",");
+				for(int i = 0; i < params.length; i++)
+				{
+					JarConverter.this.insert(JarConverter.this.typeDependency,
+					values.sourceLocation(methodType, "", "/" + className + "/" + name + "(" + sig + ")" + "/" + params[i] + i),
+					values.sourceLocation("java+PrimitiveType", "", params[i]));
+				}
 			}
 			catch (URISyntaxException e)
 			{
