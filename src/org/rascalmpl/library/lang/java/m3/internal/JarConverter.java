@@ -139,7 +139,16 @@ public class JarConverter extends M3Converter {
                         sr.accept(new SigVisitor(Opcodes.ASM4));
                 }else {
                         sig = extractSignature(desc);
-                }        
+                }  
+                //Typedepency methods
+                String TypeSig = sig;
+                TypeSig = TypeSig.replaceAll("(","");
+                TypeSig = TypeSig.replaceAll(")","");
+                //Loop over all parameters in the signature
+                String[] params = TypeSig.split(",");
+                for(int i = 0; i< params.length;i++){
+                	this.insert(this.typeDependency,values.sourceLocation(type,"",LogPath + "/" + name + "(" + sig + ")" + "/" + params[i] + i), values.sourceLocation("java+PrimitiveType","",params[i]));
+                }
                 this.insert(this.declarations,values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"),values.sourceLocation(jarFile + "!" + ClassFile));        
                 for ( int fs = 0 ; fs < 15 ; fs++ ) { 
                         if ( (access & (0x0001 << fs )) != 0 ) {
