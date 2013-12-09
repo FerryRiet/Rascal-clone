@@ -142,19 +142,38 @@ public class JarConverter extends M3Converter {
                 }  
                 //Typedepency methods
                 String TypeSig = sig;
-                TypeSig = TypeSig.replaceAll("(","");
-                TypeSig = TypeSig.replaceAll(")","");
                 //Loop over all parameters in the signature
-                String[] params = TypeSig.split(",");
-                for(int i = 0; i< params.length;i++){
-                	this.insert(this.typeDependency,values.sourceLocation(type,"",LogPath + "/" + name + "(" + sig + ")" + "/" + params[i] + i), values.sourceLocation("java+PrimitiveType","",params[i]));
+                String[] params;
+                
+                if((TypeSig != null) && (!TypeSig.equals(""))){
+                	params = TypeSig.split(",");        
+                	for(int i = 0; i< params.length;i++){ 
+                		this.insert(this.typeDependency,values.sourceLocation("java+parameter","",LogPath + "/" + name + "(" + sig + ")" + "/" + params[i] + i), values.sourceLocation(printParameterType(params[i]),"",params[i]));
+                	}
                 }
-                this.insert(this.declarations,values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"),values.sourceLocation(jarFile + "!" + ClassFile));        
-                for ( int fs = 0 ; fs < 15 ; fs++ ) { 
-                        if ( (access & (0x0001 << fs )) != 0 ) {
-                                this.insert(this.modifiers,values.sourceLocation(type, "" ,LogPath + "/" + name + "(" + sig + ")"),mapFieldAccesCode(0x0001<<fs,METHODE) );                                
-                        }
+                
+                //Return type
+                if(type.equals("java+constructor")){
+                	this.insert(this.typeDependency,values.sourceLocation("java+constructor","",LogPath + "/" + name + "(" + sig + ")"), values.sourceLocation("java+class","",LogPath));
                 }
+                else{
+                	String rType = null;
+                	 if( signature != null) {
+                		 rType = Signature.toString(signature);  
+                	 }else {
+                		 rType = Signature.toString(desc);  
+                	}  
+                	rType = rType.substring(0,rType.indexOf(' '));
+                	this.insert(this.typeDependency,values.sourceLocation("java+method","",LogPath + "/" + name + "(" + sig + ")"), values.sourceLocation(printParameterType(rType),"",rType));
+               	}
+                
+               	this.insert(this.declarations,values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"),values.sourceLocation(jarFile + "!" + ClassFile));        
+               	for ( int fs = 0 ; fs < 15 ; fs++ ) { 
+               		if ( (access & (0x0001 << fs )) != 0 ) {
+                               this.insert(this.modifiers,values.sourceLocation(type, "" ,LogPath + "/" + name + "(" + sig + ")"),mapFieldAccesCode(0x0001<<fs,METHODE) );                                
+                       }
+                }
+               
                 // Containment of methods.
                 this.insert(this.containment,values.sourceLocation(classScheme, "", LogPath ), values.sourceLocation(type, "", LogPath + "/" + name + "(" + sig + ")"));     
                 
@@ -164,6 +183,26 @@ public class JarConverter extends M3Converter {
                 	this.insert(this.annotations ,values.sourceLocation("java+method", "", LogPath + "/" + name + "(" + sig + ")"), values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));     
                 // <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>,
                 	
+        }
+        
+        private String printParameterType(String t) {
+        	if(t!=null){
+        		switch(t){
+        		case "void":
+        		case "boolean":
+        		case "char":
+        		case "byte":
+        		case "short":
+        		case "int":
+        		case "float":
+        		case "long":
+        		case "double":
+        			return "java+primitiveType";
+        		default:
+        			return "java+class";
+        		}
+        	}
+        	throw new RuntimeException("This should not happen, because i know everything");
         }
         
         private String extractSignature(String sig){
@@ -216,8 +255,8 @@ public class JarConverter extends M3Converter {
                         for (int i = 0; i < fields.size(); ++i) {
                                 FieldNode field = fields.get(i);
 				
-				if(className.contains(field.desc.substring(1,field.desc.length()-1) + "/")){
-                                	if(field.name.startsWith("this$"))
+                                if(field.name.startsWith("this$")){
+                                	if((field.desc.length()>0) && (className.contains(field.desc.substring(1,field.desc.length()-1) + "/")))                                	
                                 		break;
                                 }
 				
