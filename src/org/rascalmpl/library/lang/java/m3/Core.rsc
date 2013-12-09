@@ -127,7 +127,8 @@ public M3 includeJarRelations(M3 project, set[M3] jarRels = {}) {
 public bool isCompilationUnit(loc entity) = entity.scheme == "java+compilationUnit";
 public bool isPackage(loc entity) = entity.scheme == "java+package";
 public bool isClass(loc entity) = entity.scheme == "java+class";
-public bool isMethod(loc entity) = entity.scheme == "java+method" || entity.scheme == "java+constructor";
+public bool isConstructor(loc entity) = entity.scheme == "java+constructor";
+public bool isMethod(loc entity) = entity.scheme == "java+method" || isConstructor(entity);
 public bool isParameter(loc entity) = entity.scheme == "java+parameter";
 public bool isVariable(loc entity) = entity.scheme == "java+variable";
 public bool isField(loc entity) = entity.scheme == "java+field";
@@ -165,6 +166,7 @@ public rel[loc, loc] declaredSubTypes(M3 m)
   
 
 
+@memo public set[loc] compilationUnits(M3 m) = {e | e <- m@declarations<name>, isCompilationUnit(e)};
 @memo public set[loc] classes(M3 m) =  {e | e <- m@declarations<name>, isClass(e)};
 @memo public set[loc] interfaces(M3 m) =  {e | e <- m@declarations<name>, isInterface(e)};
 @memo public set[loc] packages(M3 m) = {e | e <- m@declarations<name>, isPackage(e)};
@@ -172,6 +174,7 @@ public rel[loc, loc] declaredSubTypes(M3 m)
 @memo public set[loc] parameters(M3 m)  = {e | e <- m@declarations<name>, isParameter(e)};
 @memo public set[loc] fields(M3 m) = {e | e <- m@declarations<name>, isField(e)};
 @memo public set[loc] methods(M3 m) = {e | e <- m@declarations<name>, isMethod(e)};
+@memo public set[loc] constructors(M3 m) = {e | e <- m@declarations<name>, isConstructor(e)};
 
 // omethods only methods without constructors
 @memo public set[loc] omethods(M3 m) = {e | e <- m@declarations<name>, e.scheme == "java+method" };
@@ -180,4 +183,5 @@ public set[loc] elements(M3 m, loc parent) = { e | <parent, e> <- m@containment 
 
 @memo public set[loc] fields(M3 m, loc class) = { e | e <- elements(m, class), isField(e) };
 @memo public set[loc] methods(M3 m, loc class) = { e | e <- elements(m, class), isMethod(e) };
+@memo public set[loc] constructors(M3 m, loc class) = { e | e <- elements(m, class), isConstructor(e) };
 @memo public set[loc] nestedClasses(M3 m, loc class) = { e | e <- elements(m, class), isClass(e) };
