@@ -146,16 +146,15 @@ public class JarConverter extends M3Converter
 			String signature, String superName, String[] interfaces)
 		{
 			className = name.replace("$", "/");
+			classScheme = "java+class";
+			if((access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
 			
 			try
 			{
-				classScheme = "java+class";
-				if((access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
-
 				JarConverter.this.insert(JarConverter.this.declarations,
 					values.sourceLocation(classScheme, "", "/" + className),
 					values.sourceLocation(jarFileName + "!" + classFileName));
-				
+
 				if(superName != null && !superName.equalsIgnoreCase("java/lang/Object"))
 				{
 					JarConverter.this.insert(JarConverter.this.extendsRelations,
@@ -166,6 +165,15 @@ public class JarConverter extends M3Converter
 				JarConverter.this.insert(JarConverter.this.containment,
 					values.sourceLocation(classScheme, "",  "/" + className),
 					values.sourceLocation("java+compilationUnit" , "" , "/" + jarLoc.getURI()));
+				
+				String packageName = className.substring(0, className.lastIndexOf("/"));
+				// <|java+package:///Main|,|java+compilationUnit:///src/Main/BaseInt.java|>,
+                JarConverter.this.insert(JarConverter.this.containment,
+            		values.sourceLocation("java+package" , "",  "/" + packageName),
+            		values.sourceLocation("java+compilationUnit" , "" , "/" + jarLoc.getURI()));
+                JarConverter.this.insert(JarConverter.this.containment,
+            		values.sourceLocation("java+compilationUnit" , "" , "/" + jarLoc.getURI()),
+            		values.sourceLocation("java+class" , "",  "/" + className));
 				
 				processAccess(access, classScheme, "/" + className, JarConverter.EOpcodeType.CLASS);
 				
