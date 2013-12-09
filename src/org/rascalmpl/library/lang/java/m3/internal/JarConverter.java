@@ -6,6 +6,7 @@ import java.net.URISyntaxException;
 import org.eclipse.imp.pdb.facts.IConstructor;
 import org.eclipse.imp.pdb.facts.ISourceLocation;
 import org.eclipse.imp.pdb.facts.type.TypeStore;
+import org.eclipse.jdt.core.Signature;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.Attribute;
 import org.objectweb.asm.ClassReader;
@@ -68,7 +69,7 @@ public class JarConverter extends M3Converter
 			return jarLoc.getPath().substring(jarLoc.getPath().indexOf("!") + 1);
 		}
 		
-		private void processAccess(int access, String scheme, String authority, String path, JarConverter.EOpcodeType opcodeType)
+		private void processAccess(int access, String scheme, String path, JarConverter.EOpcodeType opcodeType)
 			throws URISyntaxException
 		{
 			for(int i = 0; i < 15; i ++)
@@ -79,7 +80,7 @@ public class JarConverter extends M3Converter
 					if(cons != null)
 					{
 						JarConverter.this.insert(JarConverter.this.modifiers,
-							values.sourceLocation(scheme, authority, path), cons);
+							values.sourceLocation(scheme, "", path), cons);
 					}
 				}
 			}
@@ -127,30 +128,30 @@ public class JarConverter extends M3Converter
 				if((access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
 
 				JarConverter.this.insert(JarConverter.this.declarations,
-					values.sourceLocation(classScheme, "/" + className, ""),
+					values.sourceLocation(classScheme, "", "/" + className),
 					values.sourceLocation(jarFileName + "!" + classFileName));
 				
 				if(superName != null && !superName.equalsIgnoreCase("java/lang/Object"))
 				{
 					JarConverter.this.insert(JarConverter.this.extendsRelations,
-						values.sourceLocation(classScheme, "/" + className, ""),
-						values.sourceLocation(classScheme, "/" + superName, ""));
+						values.sourceLocation(classScheme, "", "/" + className),
+						values.sourceLocation(classScheme, "", "/" + superName));
 				}
 				
-				processAccess(access, classScheme, "/" + className, "", JarConverter.EOpcodeType.CLASS);
+				processAccess(access, classScheme, "/" + className, JarConverter.EOpcodeType.CLASS);
 				
 				if((access & Opcodes.ACC_DEPRECATED) != 0)
                 {
                 	JarConverter.this.insert(JarConverter.this.annotations,
-            			values.sourceLocation(classScheme, "/" + className, ""),
-            			values.sourceLocation("java+interface", "/java/lang/Deprecated", ""));
+            			values.sourceLocation(classScheme, "", "/" + className),
+            			values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));
                 }
 				
 				for (String iFace : interfaces)
 				{
 					JarConverter.this.insert(JarConverter.this.implementsRelations,
-						values.sourceLocation(classScheme, "/" + className, ""),
-						values.sourceLocation("java+interface", "/" + iFace, ""));
+						values.sourceLocation(classScheme, "", "/" + className),
+						values.sourceLocation("java+interface", "", "/" + iFace));
 				}
 			}
 			catch (URISyntaxException e)
@@ -181,8 +182,8 @@ public class JarConverter extends M3Converter
 			try
 			{
 				JarConverter.this.insert(JarConverter.this.containment,
-					values.sourceLocation(classScheme, "/" + className, ""), //outerName
-					values.sourceLocation("java+class", "/" + name.replace("$", "/"), ""));
+					values.sourceLocation(classScheme, "", "/" + className), //outerName
+					values.sourceLocation("java+class", "", "/" + name.replace("$", "/")));
 			}
 			catch (URISyntaxException e)
 			{
@@ -213,21 +214,21 @@ public class JarConverter extends M3Converter
 				System.out.println("FIELD: " + name + desc + signature);
 				
 				JarConverter.this.insert(JarConverter.this.declarations,
-					values.sourceLocation("java+field", "/" + className, "/" + name),
+					values.sourceLocation("java+field", "", "/" + className + "/" + name),
 					values.sourceLocation(jarFileName + "!" + classFileName));
 				
 				JarConverter.this.insert(JarConverter.this.containment,
-					values.sourceLocation(classScheme, "/" + className, ""),
-					values.sourceLocation("java+field", "/" + className, "/" + name));
+					values.sourceLocation(classScheme, "", "/" + className),
+					values.sourceLocation("java+field", "", "/" + className + "/" + name));
 				
-				processAccess(access, "java+field", "/" + className, "/" + name, JarConverter.EOpcodeType.FIELD);
+				processAccess(access, "java+field", "/" + className + "/" + name, JarConverter.EOpcodeType.FIELD);
 				
 				// <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>
 				if((access & Opcodes.ACC_DEPRECATED) != 0)
                 {
                 	JarConverter.this.insert(JarConverter.this.annotations,
-            			values.sourceLocation("java+field", "/" + className, "/" + name),
-            			values.sourceLocation("java+interface", "/java/lang/Deprecated", ""));
+            			values.sourceLocation("java+field", "", "/" + className + "/" + name),
+            			values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));
                 }
 			}
 			catch (URISyntaxException e)
@@ -248,11 +249,16 @@ public class JarConverter extends M3Converter
 				name = className;
 			}
 
-			String sig = signature == null ? desc : signature;
-			sig = sig.replaceAll("/", ".");
-			sig = sig.substring(0, sig.lastIndexOf(")") + 1);
+//			String sig = signature == null ? desc : signature;
+//			sig = sig.replaceAll("/", ".");
+//			sig = sig.substring(0, sig.lastIndexOf(")") + 1);
 			
-			if(signature == null)
+			String sig = Signature.toString(signature == null ? desc : signature);
+			sig = sig.substring(0, sig.indexOf(")") + 1);
+			sig = sig.replaceAll("\\s+","");
+			sig = sig.replaceAll("/",".");
+			
+			if(signature != null)
 			{
 				SignatureReader sr = new SignatureReader(signature);
 	            sr.accept(new SigVisitor());
@@ -263,22 +269,22 @@ public class JarConverter extends M3Converter
 			try
 			{
 				JarConverter.this.insert(JarConverter.this.declarations,
-					values.sourceLocation(methodType, "/" + className, "/" + name + sig),
+					values.sourceLocation(methodType, "", "/" + className + "/" + name + sig),
 					values.sourceLocation(jarFileName + "!" + classFileName));
 				
 				JarConverter.this.insert(JarConverter.this.containment,
-					values.sourceLocation(classScheme, "/" + className, ""),
-					values.sourceLocation(methodType, "/" + className, "/" + name + sig));
+					values.sourceLocation(classScheme, "", "/" + className),
+					values.sourceLocation(methodType, "", "/" + className + "/" + name + sig));
 				
-				processAccess(access, methodType, "/" + className, "/" + name + sig, JarConverter.EOpcodeType.METHOD);
+				processAccess(access, methodType, "/" + className + "/" + name + sig, JarConverter.EOpcodeType.METHOD);
 				
 				// Deprecated method emit type dependency Deprecated.
 				// <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>,
                 if((access & Opcodes.ACC_DEPRECATED) != 0)
                 {
                 	JarConverter.this.insert(JarConverter.this.annotations,
-            			values.sourceLocation(classScheme, "/" + className, "/" + name + sig),
-            			values.sourceLocation("java+interface", "/java/lang/Deprecated", ""));
+            			values.sourceLocation(classScheme, "", "/" + className + "/" + name + sig),
+            			values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));
                 }
 			}
 			catch (URISyntaxException e)
@@ -307,7 +313,7 @@ public class JarConverter extends M3Converter
 				try
 				{
 					JarConverter.this.insert(JarConverter.this.declarations,
-						values.sourceLocation("java+typeVariable", "/" + className, "/" + name),
+						values.sourceLocation("java+typeVariable", "", "/" + className + "/" + name),
 						values.sourceLocation(jarFileName + "!" + classFileName) );
 				}
 				catch (URISyntaxException e)
