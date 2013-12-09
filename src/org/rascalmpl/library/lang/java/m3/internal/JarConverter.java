@@ -65,11 +65,11 @@ public class JarConverter extends M3Converter {
                         if((cn.access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
                         else this.classScheme = "java+class";
 
-                        this.insert(this.containment, values.sourceLocation(classScheme, "",  "/" + className), values.sourceLocation("java+compilationUnit" , "" , "/" + jarLoc.getURI()));
-                        packageName = LogPath.substring(0,LogPath.lastIndexOf("/")) ;
+                        this.insert(this.containment, values.sourceLocation(classScheme, "",  "/" + className), values.sourceLocation("java+compilationUnit" , "" , "/jar:///" + jarFile));
                         
-                        this.insert(this.containment, values.sourceLocation("java+package" , "",  "/" + packageName), values.sourceLocation("java+compilationUnit" , "" , "/" + jarLoc.getURI()));
-                        this.insert(this.containment, values.sourceLocation("java+compilationUnit" , "" , "/" + jarLoc.getURI()),values.sourceLocation("java+class" , "",  "/" + LogPath) );
+                        packageName = LogPath.substring(0,LogPath.lastIndexOf("/")) ;
+                        this.insert(this.containment, values.sourceLocation("java+package" , "",  "/" + packageName), values.sourceLocation("java+compilationUnit" , "" , "/jar:///" + jarFile));
+                        this.insert(this.containment, values.sourceLocation("java+compilationUnit" , "" , "/jar:///" + jarFile),values.sourceLocation("java+class" , "",  "/" + LogPath) );
 
                         // <|java+package:///Main|,|java+compilationUnit:///src/Main/BaseInt.java|>,
 
