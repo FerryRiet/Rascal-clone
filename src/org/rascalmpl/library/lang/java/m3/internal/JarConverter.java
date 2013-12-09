@@ -13,6 +13,8 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.signature.SignatureReader;
+import org.objectweb.asm.signature.SignatureVisitor;
 import org.rascalmpl.interpreter.IEvaluatorContext;
 
 public class JarConverter extends M3Converter
@@ -40,7 +42,7 @@ public class JarConverter extends M3Converter
 
 	private enum EOpcodeType { CLASS, METHOD, FIELD };
 	
-	class Jar2M3ClassVisitor extends ClassVisitor
+	private class Jar2M3ClassVisitor extends ClassVisitor
 	{
 		private final String jarFileName;
 		private final String classFileName;
@@ -250,6 +252,12 @@ public class JarConverter extends M3Converter
 			sig = sig.replaceAll("/", ".");
 			sig = sig.substring(0, sig.lastIndexOf(")") + 1);
 			
+			if(signature == null)
+			{
+				SignatureReader sr = new SignatureReader(signature);
+	            sr.accept(new SigVisitor());
+			}
+			
 			System.out.println("METHOD: " + name + " " + desc + " " + signature);
 			
 			try
@@ -285,6 +293,34 @@ public class JarConverter extends M3Converter
 		public void visitEnd()
 		{
 			
+		}
+		
+		private class SigVisitor extends SignatureVisitor
+		{
+			public SigVisitor()
+			{
+				super(Opcodes.ASM4);
+			}
+		
+			public void visitFormalTypeParameter(String name)
+			{
+				try
+				{
+					JarConverter.this.insert(JarConverter.this.declarations,
+						values.sourceLocation("java+typeVariable", "/" + className, "/" + name),
+						values.sourceLocation(jarFileName + "!" + classFileName) );
+				}
+				catch (URISyntaxException e)
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+			public void visitBaseType(char descriptor)
+			{
+				
+			}
 		}
 	}
 }
