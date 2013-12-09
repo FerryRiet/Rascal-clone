@@ -117,6 +117,29 @@ public class JarConverter extends M3Converter
 					return null;
 			}
 		}
+		
+		private String getParameterTypeScheme(String t)
+		{
+        	if(t != null)
+        	{
+        		switch(t)
+        		{
+	        		case "void":
+	        		case "boolean":
+	        		case "char":
+	        		case "byte":
+	        		case "short":
+	        		case "int":
+	        		case "float":
+	        		case "long":
+	        		case "double":
+	        			return "java+primitiveType";
+	        		default:
+	        			return "java+class";
+        		}
+        	}
+        	throw new RuntimeException("t is null");
+        }
 
 		@Override
 		public void visit(int version, int access, String name,
@@ -215,8 +238,8 @@ public class JarConverter extends M3Converter
 		public FieldVisitor visitField(int access, String name, String desc,
 			String signature, Object value)
 		{
-			if(className.contains(desc.substring(1, desc.length() - 1) + "/")
-				&& name.startsWith("this$"))
+			if(desc.startsWith("L") && name.startsWith("this$")
+				&& className.contains(desc.substring(1, desc.length() - 1) + "/"))
 			{
         		return null;
             }
@@ -306,6 +329,21 @@ public class JarConverter extends M3Converter
 					JarConverter.this.insert(JarConverter.this.typeDependency,
 					values.sourceLocation(methodType, "", "/" + className + "/" + name + "(" + sig + ")" + "/" + params[i] + i),
 					values.sourceLocation("java+PrimitiveType", "", params[i]));
+				}
+				
+				//Return type
+				if(methodType.equals("java+constructor"))
+				{
+					JarConverter.this.insert(JarConverter.this.typeDependency,
+						values.sourceLocation("java+constructor", "", "/" + className + "/" + name + sig),
+						values.sourceLocation("java+class", "", "/" + className));
+				}
+				else
+				{
+					String rType = Signature.toString(signature == null ? desc : signature).substring(0, sig.indexOf(' '));
+					JarConverter.this.insert(JarConverter.this.typeDependency,
+						values.sourceLocation("java+method", "", "/" + className + "/" + name + sig),
+						values.sourceLocation(getParameterTypeScheme(rType), "", rType));
 				}
 			}
 			catch (URISyntaxException e)
