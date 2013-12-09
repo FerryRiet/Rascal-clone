@@ -45,7 +45,6 @@ public class JarConverter extends M3Converter
 	
 	private class Jar2M3ClassVisitor extends ClassVisitor
 	{
-		private final ISourceLocation jarLoc;
 		private final String jarFileName;
 		private final String classFileName;
 		private String className;
@@ -54,7 +53,6 @@ public class JarConverter extends M3Converter
 		public Jar2M3ClassVisitor(ISourceLocation jarLoc)
 		{
 			super(Opcodes.ASM4, null);
-			this.jarLoc = jarLoc;
 			this.jarFileName = extractJarName(jarLoc);
 			this.classFileName = extractClassName(jarLoc);
 		}
@@ -164,17 +162,17 @@ public class JarConverter extends M3Converter
 				
 				JarConverter.this.insert(JarConverter.this.containment,
 					values.sourceLocation(classScheme, "",  "/" + className),
-					values.sourceLocation("java+compilationUnit" , "" , "/" + jarLoc.getURI()));
+					values.sourceLocation("java+compilationUnit", "", "/jar:///" + jarFileName));
 				
 				String packageName = className.substring(0, className.lastIndexOf("/"));
 				// <|java+package:///Main|,|java+compilationUnit:///src/Main/BaseInt.java|>,
                 JarConverter.this.insert(JarConverter.this.containment,
             		values.sourceLocation("java+package", "", "/" + packageName),
-            		values.sourceLocation("java+compilationUnit", "", "/" + jarLoc.getURI()));
+            		values.sourceLocation("java+compilationUnit", "", "/jar:///" + jarFileName));
                 JarConverter.this.insert(JarConverter.this.containment,
-            		values.sourceLocation("java+compilationUnit", "", "/" + jarLoc.getURI()),
+            		values.sourceLocation("java+compilationUnit", "", "/jar:///" + jarFileName),
             		values.sourceLocation("java+class", "", "/" + className));
-				
+
 				processAccess(access, classScheme, "/" + className, JarConverter.EOpcodeType.CLASS);
 				
 				if((access & Opcodes.ACC_DEPRECATED) != 0)
