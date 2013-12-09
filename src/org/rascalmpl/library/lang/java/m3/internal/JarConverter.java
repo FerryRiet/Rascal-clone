@@ -281,7 +281,7 @@ public class JarConverter extends M3Converter {
                                 FieldNode field = fields.get(i);
 				
                                 if(field.name.startsWith("this$")){
-                                	if((field.desc.length()>0) && (className.contains(field.desc.substring(1,field.desc.length()-1) + "/")))                                	
+                                	if((field.desc.length()>0) && (className.contains(field.desc.substring(1,field.desc.length()-1).replace('$', '/') + "/")))                                	
 
                                 		break;
                                 }
