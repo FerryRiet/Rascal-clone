@@ -127,7 +127,7 @@ public class JarConverter extends M3Converter {
                                 
                                 if(method.name.contains("<")){
                                         String name = LogPath.substring(LogPath.lastIndexOf("/"));
-                                        insertDeclMethod("java+constructor",method.signature,method.desc,name,method.access);
+                                        insertDeclMethod("java+constructor",method.signature,eliminateOutterClass(method.desc),name,method.access);
                                 }else{
                                         insertDeclMethod("java+method",method.signature,method.desc,method.name,method.access);                                        
                                 }
@@ -191,6 +191,23 @@ public class JarConverter extends M3Converter {
                 	this.insert(this.annotations ,values.sourceLocation("java+method", "", LogPath + "/" + name + "(" + sig + ")"), values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));     
                 // <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>,
                 	
+        }
+
+	private String eliminateOutterClass(String desc){
+            //Find the end of the first class argument
+            int semi = desc.indexOf(';');
+            String outter = null;
+            
+            //Create the possible path
+            if(semi > 0 ){
+            	outter = desc.substring(desc.indexOf('(')+2,semi)+"$";
+            }
+            
+            //if the first argument is contained in the class path, remove it
+            if((outter!=null) && ClassFile.contains(outter))
+            	return "(" + desc.substring(semi+1);
+            else
+            	return desc;
         }
         
         private String printParameterType(String t) {
