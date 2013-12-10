@@ -144,16 +144,10 @@ public class JarConverter extends M3Converter
 			//Find the end of the first class argument
 			int semi = desc.indexOf(';');
 			
-			//Create the possible path
-			if(semi > 0)
+			//If the first argument is contained in the class path, remove it
+			if(semi > 0 && classFileName.contains(desc.substring(2, semi) + "$"))
 			{
-				String outter = desc.substring(desc.indexOf('(') + 2, semi) + "$";
-				
-				//if the first argument is contained in the class path, remove it
-				if(classFileName.contains(outter))
-				{
-					return "(" + desc.substring(semi + 1);
-				}
+				return "(" + desc.substring(semi + 1);
 			}
 			
 			return desc;

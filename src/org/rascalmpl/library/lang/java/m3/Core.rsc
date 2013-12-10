@@ -102,9 +102,10 @@ public M3 createM3FromJar(loc jarFile) {
     
     map[str,M3] m3Map = (classPathToStr(jc): createM3FromJarClass(jc) | /file(jc) <- crawl(jarFile), jc.extension == "class");
     
-    rel[str,str] inheritsFrom = { *({<c.path, i.path> | <c, i> <- m3@implements} + {<c.path, i.path> | <c, i> <- m3@extends}) | m3 <- range(m3Map) }+;
+    rel[str,str] inheritsFrom = { *{ <c.path, i.path> | <c, i> <- (m3@implements + m3@extends),
+        c.path in m3Map && i.path in m3Map } | m3 <- range(m3Map) }+;
     
-    for(<c, sc> <- inheritsFrom, c in m3Map && sc in m3Map) {
+    for(<c, sc> <- inheritsFrom) {
 	        set[loc] methodSC = { m | <m, p> <- m3Map[sc]@modifiers, (p == \public() || p == \protected()) && m.scheme == "java+method"  };	
 	        m3Map[c]@methodOverrides += { <mc, msc> | msc <- methodSC, mc <- omethods(m3Map[c]), mc.file == msc.file };	
     }
