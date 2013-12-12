@@ -36,7 +36,6 @@ public class JarConverter extends M3Converter
 		}
 		catch (IOException e)
 		{
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -49,6 +48,7 @@ public class JarConverter extends M3Converter
 		private final String classFileName;
 		private String className;
 		private String classScheme;
+		private int classAccess;
 
 		public Jar2M3ClassVisitor(ISourceLocation jarLoc)
 		{
@@ -157,9 +157,15 @@ public class JarConverter extends M3Converter
 		public void visit(int version, int access, String name,
 			String signature, String superName, String[] interfaces)
 		{
+			System.out.println("CLASS: " + version + access + name + signature + superName);
+			
 			className = name.replace('$', '/');
 			classScheme = "java+class";
 			if((access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
+			else if((access & Opcodes.ACC_ENUM) != 0) classScheme = "java+enum";
+			classAccess = access;
+			
+			// TODO Enums don't have functions or modifiers on their constants.
 			
 			try
 			{
@@ -167,7 +173,8 @@ public class JarConverter extends M3Converter
 					values.sourceLocation(classScheme, "", "/" + className),
 					values.sourceLocation(jarFileName + "!" + classFileName));
 
-				if(superName != null && !superName.equalsIgnoreCase("java/lang/Object"))
+				if(superName != null && !(superName.equalsIgnoreCase("java/lang/Object")
+					|| superName.equalsIgnoreCase("java/lang/Enum")))
 				{
 					JarConverter.this.insert(JarConverter.this.extendsRelations,
 						values.sourceLocation(classScheme, "", "/" + className),
@@ -261,25 +268,28 @@ public class JarConverter extends M3Converter
         		return null;
             }
 			
-			System.out.println("FIELD: " + name + desc + signature);
+			String fieldScheme = "java+field";
+			if((classAccess & Opcodes.ACC_ENUM) != 0) fieldScheme = "java+enumConstant";
+			
+			System.out.println("FIELD: " + access + name + desc + signature);
 			
 			try
 			{
 				JarConverter.this.insert(JarConverter.this.declarations,
-					values.sourceLocation("java+field", "", "/" + className + "/" + name),
+					values.sourceLocation(fieldScheme, "", "/" + className + "/" + name),
 					values.sourceLocation(jarFileName + "!" + classFileName));
 				
 				JarConverter.this.insert(JarConverter.this.containment,
 					values.sourceLocation(classScheme, "", "/" + className),
-					values.sourceLocation("java+field", "", "/" + className + "/" + name));
+					values.sourceLocation(fieldScheme, "", "/" + className + "/" + name));
 				
-				processAccess(access, "java+field", "/" + className + "/" + name, JarConverter.EOpcodeType.FIELD);
+				processAccess(access, fieldScheme, "/" + className + "/" + name, JarConverter.EOpcodeType.FIELD);
 				
 				// <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>
 				if((access & Opcodes.ACC_DEPRECATED) != 0)
                 {
                 	JarConverter.this.insert(JarConverter.this.annotations,
-            			values.sourceLocation("java+field", "", "/" + className + "/" + name),
+            			values.sourceLocation(fieldScheme, "", "/" + className + "/" + name),
             			values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));
                 }
 			}
@@ -295,7 +305,7 @@ public class JarConverter extends M3Converter
 			String signature, String[] exceptions)
 		{
 			String methodType = "java+method";
-			if(name.equalsIgnoreCase("<init>"))
+			if(name.endsWith("init>"))
 			{
 				methodType = "java+constructor";
 				name = className;
@@ -317,7 +327,7 @@ public class JarConverter extends M3Converter
 	            sr.accept(new SigVisitor());
 			}
 			
-			System.out.println("METHOD: " + name + " " + desc + " " + signature);
+			System.out.println("METHOD: " + access + name + " " + desc + " " + signature);
 			
 			try
 			{

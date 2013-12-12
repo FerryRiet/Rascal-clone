@@ -134,6 +134,7 @@ public bool isParameter(loc entity) = entity.scheme == "java+parameter";
 public bool isVariable(loc entity) = entity.scheme == "java+variable";
 public bool isField(loc entity) = entity.scheme == "java+field";
 public bool isInterface(loc entity) = entity.scheme == "java+interface";
+public bool isEnum(loc entity) = entity.scheme == "java+enum";
 
 public set[loc] files(rel[loc, loc] containment) 
   = {e.lhs | tuple[loc lhs, loc rhs] e <- containment, isCompilationUnit(e.lhs)};
@@ -176,6 +177,7 @@ public rel[loc, loc] declaredSubTypes(M3 m)
 @memo public set[loc] fields(M3 m) = {e | e <- m@declarations<name>, isField(e)};
 @memo public set[loc] methods(M3 m) = {e | e <- m@declarations<name>, isMethod(e)};
 @memo public set[loc] constructors(M3 m) = {e | e <- m@declarations<name>, isConstructor(e)};
+@memo public set[loc] enums(M3 m) = {e | e <- m@declarations<name>, isEnum(e)};
 
 // omethods only methods without constructors
 @memo public set[loc] omethods(M3 m) = {e | e <- m@declarations<name>, e.scheme == "java+method" };
