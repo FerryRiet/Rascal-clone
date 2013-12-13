@@ -314,7 +314,7 @@ public class JarConverter extends M3Converter
 			if(name.endsWith("init>"))
 			{
 				methodType = "java+constructor";
-				name = className;
+				name = className.contains("/") ? className.substring(className.lastIndexOf('/')) : className;
 				desc = eliminateOutterClass(desc);
 			}
 
@@ -359,8 +359,8 @@ public class JarConverter extends M3Converter
 					for(int i = 0; i < params.length; i++)
 					{
 						JarConverter.this.insert(JarConverter.this.typeDependency,
-							values.sourceLocation(methodType, "", "/" + className + "/" + name + sig + "/" + params[i] + i),
-							values.sourceLocation("java+PrimitiveType", "", params[i]));
+							values.sourceLocation("java+parameter", "", "/" + className + "/" + name + sig + "/" + params[i] + i),
+							values.sourceLocation("java+primitiveType", "", params[i]));
 					}
                 }
 				
