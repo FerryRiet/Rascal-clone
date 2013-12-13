@@ -29,9 +29,7 @@ public class JarConverter extends M3Converter
 	{
 		try
 		{
-			ClassReader cr = new ClassReader(ctx.getResolverRegistry()
-				.getInputStream(jarLoc.getURI()));
-			
+			ClassReader cr = new ClassReader(ctx.getResolverRegistry().getInputStream(jarLoc.getURI()));
 			cr.accept(new Jar2M3ClassVisitor(jarLoc), ClassReader.SKIP_DEBUG);
 		}
 		catch (IOException e)
@@ -145,7 +143,7 @@ public class JarConverter extends M3Converter
 			int semi = desc.indexOf(';');
 			
 			//If the first argument is contained in the class path, remove it
-			if(semi > 0 && classFileName.contains(desc.substring(2, semi) + "$"))
+			if(semi > 0 && classFileName.contains(desc.substring(desc.indexOf('(') + 2, semi) + "$"))
 			{
 				return "(" + desc.substring(semi + 1);
 			}
@@ -157,15 +155,13 @@ public class JarConverter extends M3Converter
 		public void visit(int version, int access, String name,
 			String signature, String superName, String[] interfaces)
 		{
-			System.out.println("CLASS: " + version + access + name + signature + superName);
+			System.out.println(String.format("CLASS: %s, %s, %s, %s, %s", version, access, name, signature, superName));
 			
 			className = name.replace('$', '/');
 			classScheme = "java+class";
 			if((access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
 			else if((access & Opcodes.ACC_ENUM) != 0) classScheme = "java+enum";
 			classAccess = access;
-			
-			// TODO Enums don't have functions or modifiers on their constants.
 			
 			try
 			{
@@ -225,14 +221,13 @@ public class JarConverter extends M3Converter
 		@Override
 		public void visitOuterClass(String owner, String name, String desc)
 		{
-			System.out.println("OUTER: " + owner + " " + name + " " + desc);
+			System.out.println(String.format("OUTER: %s, %s, %s", owner, name, desc));
 		}
 		
 		@Override
 		public void visitInnerClass(String name, String outerName, String innerName, int access)
 		{
-			System.out.println("INNER: " + name + " " + outerName + "(" + outerName == className + ")"
-				+ " " + innerName + " " + access);
+			System.out.println(String.format("INNER: %s, %s (%b), %s, %s", name, outerName, outerName == className, innerName, access));
 			
 			try
 			{
@@ -269,9 +264,14 @@ public class JarConverter extends M3Converter
             }
 			
 			String fieldScheme = "java+field";
-			if((classAccess & Opcodes.ACC_ENUM) != 0) fieldScheme = "java+enumConstant";
+			boolean isEnum = false;
+			if((classAccess & Opcodes.ACC_ENUM) != 0)
+			{
+				fieldScheme = "java+enumConstant";
+				isEnum = true;
+			}
 			
-			System.out.println("FIELD: " + access + name + desc + signature);
+			System.out.println(String.format("FIELD: %s, %s, %s, %s, %s", access, name, desc, signature, value));
 			
 			try
 			{
@@ -283,7 +283,10 @@ public class JarConverter extends M3Converter
 					values.sourceLocation(classScheme, "", "/" + className),
 					values.sourceLocation(fieldScheme, "", "/" + className + "/" + name));
 				
-				processAccess(access, fieldScheme, "/" + className + "/" + name, JarConverter.EOpcodeType.FIELD);
+				if(!isEnum)
+				{
+					processAccess(access, fieldScheme, "/" + className + "/" + name, JarConverter.EOpcodeType.FIELD);
+				}
 				
 				// <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>
 				if((access & Opcodes.ACC_DEPRECATED) != 0)
@@ -304,6 +307,8 @@ public class JarConverter extends M3Converter
 		public MethodVisitor visitMethod(int access, String name, String desc,
 			String signature, String[] exceptions)
 		{
+			if((classAccess & Opcodes.ACC_ENUM) != 0) return null; //Enums don't contain methods
+			
 			String methodType = "java+method";
 			if(name.endsWith("init>"))
 			{
@@ -312,12 +317,8 @@ public class JarConverter extends M3Converter
 				desc = eliminateOutterClass(desc);
 			}
 
-//			String sig = signature == null ? desc : signature;
-//			sig = sig.replaceAll("/", ".");
-//			sig = sig.substring(0, sig.lastIndexOf(")") + 1);
-			
 			String sig = Signature.toString(signature == null ? desc : signature);
-			sig = sig.substring(0, sig.indexOf(")") + 1);
+			sig = sig.substring(sig.indexOf('('), sig.indexOf(')') + 1);
 			sig = sig.replaceAll("\\s+","");
 			sig = sig.replaceAll("/",".");
 			
@@ -327,7 +328,7 @@ public class JarConverter extends M3Converter
 	            sr.accept(new SigVisitor());
 			}
 			
-			System.out.println("METHOD: " + access + name + " " + desc + " " + signature);
+			System.out.println(String.format("METHOD: %s, %s, %s, %s, %s", access, name, desc, signature, exceptions));
 			
 			try
 			{
@@ -346,7 +347,7 @@ public class JarConverter extends M3Converter
                 if((access & Opcodes.ACC_DEPRECATED) != 0)
                 {
                 	JarConverter.this.insert(JarConverter.this.annotations,
-            			values.sourceLocation(classScheme, "", "/" + className + "/" + name + sig),
+            			values.sourceLocation(methodType, "", "/" + className + "/" + name + sig),
             			values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));
                 }
                 
@@ -357,8 +358,8 @@ public class JarConverter extends M3Converter
 					for(int i = 0; i < params.length; i++)
 					{
 						JarConverter.this.insert(JarConverter.this.typeDependency,
-						values.sourceLocation(methodType, "", "/" + className + "/" + name + "(" + sig + ")" + "/" + params[i] + i),
-						values.sourceLocation("java+PrimitiveType", "", params[i]));
+							values.sourceLocation(methodType, "", "/" + className + "/" + name + sig + "/" + params[i] + i),
+							values.sourceLocation("java+PrimitiveType", "", params[i]));
 					}
                 }
 				
