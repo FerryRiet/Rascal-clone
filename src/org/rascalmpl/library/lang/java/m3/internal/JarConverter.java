@@ -58,13 +58,13 @@ public class JarConverter extends M3Converter
 		private String extractJarName(ISourceLocation jarLoc)
 		{
 			String tmp = jarLoc.getPath().substring(0,
-				jarLoc.getPath().indexOf("!"));
-			return tmp.substring(tmp.lastIndexOf("/") + 1);
+				jarLoc.getPath().indexOf('!'));
+			return tmp.substring(tmp.lastIndexOf('/') + 1);
 		}
 		
 		private String extractClassName(ISourceLocation jarLoc)
 		{
-			return jarLoc.getPath().substring(jarLoc.getPath().indexOf("!") + 1);
+			return jarLoc.getPath().substring(jarLoc.getPath().indexOf('!') + 1);
 		}
 		
 		private void processAccess(int access, String scheme, String path, JarConverter.EOpcodeType opcodeType)
@@ -267,6 +267,7 @@ public class JarConverter extends M3Converter
 			boolean isEnum = false;
 			if((classAccess & Opcodes.ACC_ENUM) != 0)
 			{
+				if(name.startsWith("ENUM$")) return null;
 				fieldScheme = "java+enumConstant";
 				isEnum = true;
 			}
@@ -307,7 +308,7 @@ public class JarConverter extends M3Converter
 		public MethodVisitor visitMethod(int access, String name, String desc,
 			String signature, String[] exceptions)
 		{
-			if((classAccess & Opcodes.ACC_ENUM) != 0) return null; //Enums don't contain methods
+			if((classAccess & Opcodes.ACC_ENUM) != 0) return null; //M3 does not contain enum methods/constructors
 			
 			String methodType = "java+method";
 			if(name.endsWith("init>"))
@@ -319,8 +320,8 @@ public class JarConverter extends M3Converter
 
 			String sig = Signature.toString(signature == null ? desc : signature);
 			sig = sig.substring(sig.indexOf('('), sig.indexOf(')') + 1);
-			sig = sig.replaceAll("\\s+","");
-			sig = sig.replaceAll("/",".");
+			sig = sig.replaceAll("\\s+", "");
+			sig = sig.replace('/', '.');
 			
 			if(signature != null)
 			{
@@ -352,9 +353,9 @@ public class JarConverter extends M3Converter
                 }
                 
 				//Loop over all parameters in the signature
-                if(sig != null && !sig.isEmpty())
+                if(sig != null && !sig.isEmpty() && !sig.equals("()"))
                 {
-					String[] params = sig.replace("(",  "").replace(")", "").split(",");
+					String[] params = sig.replace("(", "").replace(")", "").split(",");
 					for(int i = 0; i < params.length; i++)
 					{
 						JarConverter.this.insert(JarConverter.this.typeDependency,
