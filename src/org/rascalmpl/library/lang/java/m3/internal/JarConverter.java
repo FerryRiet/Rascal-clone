@@ -18,6 +18,7 @@ import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
 import org.rascalmpl.interpreter.IEvaluatorContext;
 
+//TODO Adapt debugging Sysouts to only run when actually debugging
 public class JarConverter extends M3Converter
 {
 	public JarConverter(TypeStore typeStore)
