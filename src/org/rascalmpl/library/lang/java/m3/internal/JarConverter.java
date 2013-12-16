@@ -244,13 +244,14 @@ public class JarConverter extends M3Converter
 		@Override
 		public AnnotationVisitor visitAnnotation(String desc, boolean visible)
 		{
+			System.out.println(String.format("ANNOTATION: %s, %b", desc, visible));
 			return null;
 		}
 
 		@Override
 		public void visitAttribute(Attribute attr)
 		{
-			
+			System.out.println(String.format("ATTRIBUTE: %s", attr));
 		}
 
 		@Override
@@ -311,6 +312,8 @@ public class JarConverter extends M3Converter
 				name = classNamePath.substring(classNamePath.lastIndexOf('/'));
 				desc = eliminateOutterClass(desc);
 			}
+			
+			System.out.println(String.format("METHOD: %s, %s, %s, %s, %s", access, name, desc, signature, exceptions));
 
 			String sig = Signature.toString(signature == null ? desc : signature);
 			sig = sig.substring(sig.indexOf('('), sig.indexOf(')') + 1);
@@ -322,8 +325,6 @@ public class JarConverter extends M3Converter
 				SignatureReader sr = new SignatureReader(signature);
 	            sr.accept(new SigVisitor());
 			}
-			
-			System.out.println(String.format("METHOD: %s, %s, %s, %s, %s", access, name, desc, signature, exceptions));
 			
 			try
 			{
@@ -396,6 +397,8 @@ public class JarConverter extends M3Converter
 		
 			public void visitFormalTypeParameter(String name)
 			{
+				System.out.println(String.format("TYPE PARAM: %s", name));
+				
 				try
 				{
 					JarConverter.this.insert(JarConverter.this.declarations,
