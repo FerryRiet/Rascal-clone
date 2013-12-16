@@ -28,6 +28,7 @@ public class JarConverter extends M3Converter {
         private String LogPath;
         private String classScheme;
         private String className;
+        private boolean classIsEnum;
         
         JarConverter(TypeStore typeStore) {
                 super(typeStore);
@@ -62,7 +63,13 @@ public class JarConverter extends M3Converter {
                         cr.accept(cn, ClassReader.SKIP_DEBUG);
 
                         this.className = cn.name.replace("$", "/");
+                        classIsEnum = false;
                         if((cn.access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
+                        else if((cn.access & Opcodes.ACC_ENUM) != 0)
+            			{
+            				classScheme = "java+enum";
+            				classIsEnum = true;
+            			}
                         else this.classScheme = "java+class";
 
                         this.insert(this.containment, values.sourceLocation(classScheme, "",  "/" + className), values.sourceLocation("java+compilationUnit" , "" , "/jar:///" + jarFile));
@@ -75,10 +82,10 @@ public class JarConverter extends M3Converter {
 
                         this.insert(this.declarations,values.sourceLocation(classScheme, "",  "/" + className), values.sourceLocation(jarFile + "!" + ClassFile));
                         
-                        if ( cn.superName != null ) {
-                        	    //System.out.println(cn.superName);
-                            	if ( cn.superName.equals("java/lang/Object") == false )
-                        		this.insert(this.extendsRelations,values.sourceLocation(classScheme, "",  "/" + className),values.sourceLocation(classScheme, "", cn.superName));
+                        if (cn.superName != null && !(cn.superName.equalsIgnoreCase("java/lang/Object")
+            					|| cn.superName.equalsIgnoreCase("java/lang/Enum")))
+                        {
+                    		this.insert(this.extendsRelations,values.sourceLocation(classScheme, "",  "/" + className),values.sourceLocation(classScheme, "", cn.superName));
                         }
                         
                         for ( int fs = 0 ; fs < 15 ; fs++ ) { 
@@ -124,6 +131,12 @@ public class JarConverter extends M3Converter {
                         for (int i = 0; i < methods.size(); ++i) {
                                 MethodNode method = methods.get(i);
                                 //System.out.println(new String("Signature :") + className + " " +  method.name + " " + method.signature + "  " + method.desc);
+                                
+                                if(classIsEnum && (method.name.equalsIgnoreCase("values")
+                    				|| method.name.equalsIgnoreCase("valueOf")))
+                    			{
+                    				continue;
+                    			}
                                 
                                 if(method.name.contains("<")){
                                         String name = LogPath.substring(LogPath.lastIndexOf("/"));
@@ -279,24 +292,32 @@ public class JarConverter extends M3Converter {
                 try {
                         for (int i = 0; i < fields.size(); ++i) {
                                 FieldNode field = fields.get(i);
+                                
+                                if((field.access & Opcodes.ACC_SYNTHETIC) != 0) continue;
 				
                                 if(field.name.startsWith("this$")){
                                 	if((field.desc.length()>0) && (className.contains(field.desc.substring(1,field.desc.length()-1).replace('$', '/') + "/")))                                	
 
                                 		break;
                                 }
+                                
+                                boolean isEnum = (field.access & Opcodes.ACC_ENUM) != 0;
+                    			String fieldScheme = isEnum ? "java+enumConstant" : "java+field";
 				
                                 //System.out.println("Debug......." + field.name);
-                                this.insert(this.declarations,values.sourceLocation("java+field","" , LogPath+ "/"+ field.name), values.sourceLocation(jarFile + "!" + ClassFile));
+                                this.insert(this.declarations,values.sourceLocation(fieldScheme,"" , LogPath+ "/"+ field.name), values.sourceLocation(jarFile + "!" + ClassFile));
 
                                 // Containment of fields. 
-                                this.insert(this.containment,values.sourceLocation(classScheme, "", LogPath ), values.sourceLocation("java+field","" , LogPath+ "/"+ field.name));        
+                                this.insert(this.containment,values.sourceLocation(classScheme, "", LogPath ), values.sourceLocation(fieldScheme,"" , LogPath+ "/"+ field.name));        
 
-                                // The jvm acces codes specify 15 different modifiers (more then in the Java language itself)
-                                for ( int fs = 0 ; fs < 15 ; fs++ ) { 
-                                        if ( (field.access & (0x0001 << fs )) != 0 ) {
-                                                this.insert(this.modifiers,values.sourceLocation("java+field", "", LogPath + "/" + field.name),mapFieldAccesCode(1<<fs,FIELDE) );
-                                        }
+                                if(!isEnum)
+                                {
+	                                // The jvm acces codes specify 15 different modifiers (more then in the Java language itself)
+	                                for ( int fs = 0 ; fs < 15 ; fs++ ) { 
+	                                        if ( (field.access & (0x0001 << fs )) != 0 ) {
+	                                                this.insert(this.modifiers,values.sourceLocation("java+field", "", LogPath + "/" + field.name),mapFieldAccesCode(1<<fs,FIELDE) );
+	                                        }
+	                                }
                                 }
                                 // Put deprecated field in the annotations anno.
                                 if ( (field.access & 0x20000) == 0x20000 ) 
