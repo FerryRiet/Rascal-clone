@@ -46,7 +46,7 @@ public class JarConverter extends M3Converter
 		private final String classFileName;
 		private String className;
 		private String classScheme;
-		private int classAccess;
+		private boolean classIsEnum;
 
 		public Jar2M3ClassVisitor(ISourceLocation jarLoc)
 		{
@@ -159,9 +159,13 @@ public class JarConverter extends M3Converter
 			
 			className = name.replace('$', '/');
 			classScheme = "java+class";
+			classIsEnum = false;
 			if((access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
-			else if((access & Opcodes.ACC_ENUM) != 0) classScheme = "java+enum";
-			classAccess = access;
+			else if((access & Opcodes.ACC_ENUM) != 0)
+			{
+				classScheme = "java+enum";
+				classIsEnum = true;
+			}
 			
 			try
 			{
@@ -257,22 +261,18 @@ public class JarConverter extends M3Converter
 		public FieldVisitor visitField(int access, String name, String desc,
 			String signature, Object value)
 		{
+			if((access & Opcodes.ACC_SYNTHETIC) != 0) return null;
+			
+			System.out.println(String.format("FIELD: %s, %s, %s, %s, %s", access, name, desc, signature, value));
+			
 			if(desc.startsWith("L") && name.startsWith("this$")
 				&& className.contains(desc.substring(1, desc.length() - 1).replace('$', '/') + "/"))
 			{
         		return null;
             }
 			
-			String fieldScheme = "java+field";
-			boolean isEnum = false;
-			if((classAccess & Opcodes.ACC_ENUM) != 0)
-			{
-				if(name.startsWith("ENUM$")) return null;
-				fieldScheme = "java+enumConstant";
-				isEnum = true;
-			}
-			
-			System.out.println(String.format("FIELD: %s, %s, %s, %s, %s", access, name, desc, signature, value));
+			boolean isEnum = (access & Opcodes.ACC_ENUM) != 0;
+			String fieldScheme = isEnum ? "java+enumConstant" : "java+field";
 			
 			try
 			{
@@ -308,7 +308,11 @@ public class JarConverter extends M3Converter
 		public MethodVisitor visitMethod(int access, String name, String desc,
 			String signature, String[] exceptions)
 		{
-			if((classAccess & Opcodes.ACC_ENUM) != 0) return null; //M3 does not contain enum methods/constructors
+			if(classIsEnum && (name.equalsIgnoreCase("values")
+				|| name.equalsIgnoreCase("valueOf")))
+			{
+				return null;
+			}
 			
 			String methodType = "java+method";
 			if(name.endsWith("init>"))
