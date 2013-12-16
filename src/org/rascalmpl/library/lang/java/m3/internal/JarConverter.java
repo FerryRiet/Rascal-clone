@@ -44,7 +44,7 @@ public class JarConverter extends M3Converter
 	{
 		private final String jarFileName;
 		private final String classFileName;
-		private String className;
+		private String classNamePath;
 		private String classScheme;
 		private boolean classIsEnum;
 
@@ -157,7 +157,7 @@ public class JarConverter extends M3Converter
 		{
 			System.out.println(String.format("CLASS: %s, %s, %s, %s, %s", version, access, name, signature, superName));
 			
-			className = name.replace('$', '/');
+			classNamePath = "/" + name.replace('$', '/');
 			classScheme = "java+class";
 			classIsEnum = (access & Opcodes.ACC_ENUM) != 0;
 			if((access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
@@ -166,43 +166,43 @@ public class JarConverter extends M3Converter
 			try
 			{
 				JarConverter.this.insert(JarConverter.this.declarations,
-					values.sourceLocation(classScheme, "", "/" + className),
+					values.sourceLocation(classScheme, "", classNamePath),
 					values.sourceLocation(jarFileName + "!" + classFileName));
 
 				if(superName != null && !(superName.equalsIgnoreCase("java/lang/Object")
 					|| superName.equalsIgnoreCase("java/lang/Enum")))
 				{
 					JarConverter.this.insert(JarConverter.this.extendsRelations,
-						values.sourceLocation(classScheme, "", "/" + className),
+						values.sourceLocation(classScheme, "", classNamePath),
 						values.sourceLocation(classScheme, "", "/" + superName));
 				}
 				
 				JarConverter.this.insert(JarConverter.this.containment,
-					values.sourceLocation(classScheme, "",  "/" + className),
+					values.sourceLocation(classScheme, "",  classNamePath),
 					values.sourceLocation("java+compilationUnit", "", "/jar:///" + jarFileName));
 				
-				String packageName = className.contains("/") ? className.substring(0, className.lastIndexOf("/")) : "";
+				String packageName = classNamePath.substring(0, classNamePath.lastIndexOf('/'));
 				// <|java+package:///Main|,|java+compilationUnit:///src/Main/BaseInt.java|>,
                 JarConverter.this.insert(JarConverter.this.containment,
             		values.sourceLocation("java+package", "", "/" + packageName),
             		values.sourceLocation("java+compilationUnit", "", "/jar:///" + jarFileName));
                 JarConverter.this.insert(JarConverter.this.containment,
             		values.sourceLocation("java+compilationUnit", "", "/jar:///" + jarFileName),
-            		values.sourceLocation("java+class", "", "/" + className));
+            		values.sourceLocation("java+class", "", classNamePath));
 
-				processAccess(access, classScheme, "/" + className, JarConverter.EOpcodeType.CLASS);
+				processAccess(access, classScheme, classNamePath, JarConverter.EOpcodeType.CLASS);
 				
 				if((access & Opcodes.ACC_DEPRECATED) != 0)
                 {
                 	JarConverter.this.insert(JarConverter.this.annotations,
-            			values.sourceLocation(classScheme, "", "/" + className),
+            			values.sourceLocation(classScheme, "", classNamePath),
             			values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));
                 }
 				
 				for (String iFace : interfaces)
 				{
 					JarConverter.this.insert(JarConverter.this.implementsRelations,
-						values.sourceLocation(classScheme, "", "/" + className),
+						values.sourceLocation(classScheme, "", classNamePath),
 						values.sourceLocation("java+interface", "", "/" + iFace));
 				}
 			}
@@ -227,12 +227,12 @@ public class JarConverter extends M3Converter
 		@Override
 		public void visitInnerClass(String name, String outerName, String innerName, int access)
 		{
-			System.out.println(String.format("INNER: %s, %s (%b), %s, %s", name, outerName, outerName == className, innerName, access));
+			System.out.println(String.format("INNER: %s, %s, %s, %s", name, outerName, innerName, access));
 			
 			try
 			{
 				JarConverter.this.insert(JarConverter.this.containment,
-					values.sourceLocation(classScheme, "", "/" + className), //outerName
+					values.sourceLocation(classScheme, "", classNamePath),
 					values.sourceLocation("java+class", "", "/" + name.replace('$', '/')));
 			}
 			catch (URISyntaxException e)
@@ -261,36 +261,29 @@ public class JarConverter extends M3Converter
 			
 			System.out.println(String.format("FIELD: %s, %s, %s, %s, %s", access, name, desc, signature, value));
 			
-//			if(desc.startsWith("L") && name.startsWith("this$")
-//				&& className.contains(desc.substring(1, desc.length() - 1).replace('$', '/') + "/"))
-//			{
-//				throw new RuntimeException("DERP");
-//        		//return null;
-//            }
-			
 			boolean isEnum = (access & Opcodes.ACC_ENUM) != 0;
 			String fieldScheme = isEnum ? "java+enumConstant" : "java+field";
 			
 			try
 			{
 				JarConverter.this.insert(JarConverter.this.declarations,
-					values.sourceLocation(fieldScheme, "", "/" + className + "/" + name),
+					values.sourceLocation(fieldScheme, "", classNamePath + "/" + name),
 					values.sourceLocation(jarFileName + "!" + classFileName));
 				
 				JarConverter.this.insert(JarConverter.this.containment,
-					values.sourceLocation(classScheme, "", "/" + className),
-					values.sourceLocation(fieldScheme, "", "/" + className + "/" + name));
+					values.sourceLocation(classScheme, "", classNamePath),
+					values.sourceLocation(fieldScheme, "", classNamePath + "/" + name));
 				
 				if(!isEnum)
 				{
-					processAccess(access, fieldScheme, "/" + className + "/" + name, JarConverter.EOpcodeType.FIELD);
+					processAccess(access, fieldScheme, classNamePath + "/" + name, JarConverter.EOpcodeType.FIELD);
 				}
 				
 				// <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>
 				if((access & Opcodes.ACC_DEPRECATED) != 0)
                 {
                 	JarConverter.this.insert(JarConverter.this.annotations,
-            			values.sourceLocation(fieldScheme, "", "/" + className + "/" + name),
+            			values.sourceLocation(fieldScheme, "", classNamePath + "/" + name),
             			values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));
                 }
 			}
@@ -315,7 +308,7 @@ public class JarConverter extends M3Converter
 			if(name.endsWith("init>"))
 			{
 				methodType = "java+constructor";
-				name = className.contains("/") ? className.substring(className.lastIndexOf('/')) : className;
+				name = classNamePath.substring(classNamePath.lastIndexOf('/'));
 				desc = eliminateOutterClass(desc);
 			}
 
@@ -335,21 +328,21 @@ public class JarConverter extends M3Converter
 			try
 			{
 				JarConverter.this.insert(JarConverter.this.declarations,
-					values.sourceLocation(methodType, "", "/" + className + "/" + name + sig),
+					values.sourceLocation(methodType, "", classNamePath + "/" + name + sig),
 					values.sourceLocation(jarFileName + "!" + classFileName));
 				
 				JarConverter.this.insert(JarConverter.this.containment,
-					values.sourceLocation(classScheme, "", "/" + className),
-					values.sourceLocation(methodType, "", "/" + className + "/" + name + sig));
+					values.sourceLocation(classScheme, "", classNamePath),
+					values.sourceLocation(methodType, "", classNamePath + "/" + name + sig));
 				
-				processAccess(access, methodType, "/" + className + "/" + name + sig, JarConverter.EOpcodeType.METHOD);
+				processAccess(access, methodType, classNamePath + "/" + name + sig, JarConverter.EOpcodeType.METHOD);
 				
 				// Deprecated method emit type dependency Deprecated.
 				// <|java+method:///Main/Main/FindMe(java.lang.String)|,|java+interface:///java/lang/Deprecated|>,
                 if((access & Opcodes.ACC_DEPRECATED) != 0)
                 {
                 	JarConverter.this.insert(JarConverter.this.annotations,
-            			values.sourceLocation(methodType, "", "/" + className + "/" + name + sig),
+            			values.sourceLocation(methodType, "", classNamePath + "/" + name + sig),
             			values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));
                 }
                 
@@ -360,7 +353,7 @@ public class JarConverter extends M3Converter
 					for(int i = 0; i < params.length; i++)
 					{
 						JarConverter.this.insert(JarConverter.this.typeDependency,
-							values.sourceLocation("java+parameter", "", "/" + className + "/" + name + sig + "/" + params[i] + i),
+							values.sourceLocation("java+parameter", "", classNamePath + "/" + name + sig + "/" + params[i] + i),
 							values.sourceLocation("java+primitiveType", "", params[i]));
 					}
                 }
@@ -369,15 +362,15 @@ public class JarConverter extends M3Converter
 				if(methodType.equals("java+constructor"))
 				{
 					JarConverter.this.insert(JarConverter.this.typeDependency,
-						values.sourceLocation("java+constructor", "", "/" + className + "/" + name + sig),
-						values.sourceLocation("java+class", "", "/" + className));
+						values.sourceLocation("java+constructor", "", classNamePath + "/" + name + sig),
+						values.sourceLocation("java+class", "", classNamePath));
 				}
 				else
 				{
 					String rType = Signature.toString(signature == null ? desc : signature);
 					rType = rType.substring(0, rType.indexOf(' '));
 					JarConverter.this.insert(JarConverter.this.typeDependency,
-						values.sourceLocation("java+method", "", "/" + className + "/" + name + sig),
+						values.sourceLocation("java+method", "", classNamePath + "/" + name + sig),
 						values.sourceLocation(getParameterTypeScheme(rType), "", rType));
 				}
 			}
@@ -406,7 +399,7 @@ public class JarConverter extends M3Converter
 				try
 				{
 					JarConverter.this.insert(JarConverter.this.declarations,
-						values.sourceLocation("java+typeVariable", "", "/" + className + "/" + name),
+						values.sourceLocation("java+typeVariable", "", classNamePath + "/" + name),
 						values.sourceLocation(jarFileName + "!" + classFileName) );
 				}
 				catch (URISyntaxException e)
