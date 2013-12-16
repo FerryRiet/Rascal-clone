@@ -159,13 +159,9 @@ public class JarConverter extends M3Converter
 			
 			className = name.replace('$', '/');
 			classScheme = "java+class";
-			classIsEnum = false;
+			classIsEnum = (access & Opcodes.ACC_ENUM) != 0;
 			if((access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
-			else if((access & Opcodes.ACC_ENUM) != 0)
-			{
-				classScheme = "java+enum";
-				classIsEnum = true;
-			}
+			else if(classIsEnum) classScheme = "java+enum";
 			
 			try
 			{
@@ -265,11 +261,12 @@ public class JarConverter extends M3Converter
 			
 			System.out.println(String.format("FIELD: %s, %s, %s, %s, %s", access, name, desc, signature, value));
 			
-			if(desc.startsWith("L") && name.startsWith("this$")
-				&& className.contains(desc.substring(1, desc.length() - 1).replace('$', '/') + "/"))
-			{
-        		return null;
-            }
+//			if(desc.startsWith("L") && name.startsWith("this$")
+//				&& className.contains(desc.substring(1, desc.length() - 1).replace('$', '/') + "/"))
+//			{
+//				throw new RuntimeException("DERP");
+//        		//return null;
+//            }
 			
 			boolean isEnum = (access & Opcodes.ACC_ENUM) != 0;
 			String fieldScheme = isEnum ? "java+enumConstant" : "java+field";

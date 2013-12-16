@@ -186,7 +186,7 @@ public class JarURIResolver implements IURIInputStreamResolver{
 					result = result.substring(0, index + 1);
 					boolean entryPresent = false;
 					for (Iterator<String> it = matchedEntries.iterator(); it.hasNext(); ) {
-						if (result.indexOf(it.next()) != -1) {
+						if(result.substring(0, result.length() - 1).equals(it.next())) {
 							entryPresent = true;
 							break;
 						}
