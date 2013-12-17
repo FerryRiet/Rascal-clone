@@ -24,7 +24,7 @@ public void printAllJarM3txt(loc jarFolder)
 
 private void printAllJarM3(loc jarFolder, void (loc) printer)
 {
-    for(/file(l) <- crawl(jarFolder), l.extension == "jar")
+    for(/file(l) <- crawl(jarFolder), l.extension == "jar", bprintln(l))
     {
         printer(l[scheme = "jar"][path = l.path + "!"]);
     }

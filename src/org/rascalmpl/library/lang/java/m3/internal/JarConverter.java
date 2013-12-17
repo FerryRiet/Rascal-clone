@@ -159,6 +159,7 @@ public class JarConverter extends M3Converter
 		{
 			System.out.println(String.format("CLASS: %s, %s, %s, %s, %s", version, access, name, signature, superName));
 			
+			String packageName = classNamePath.substring(0, classNamePath.lastIndexOf('/'));
 			classNamePath = "/" + name.replace('$', '/');
 			classScheme = "java+class";
 			classIsEnum = (access & Opcodes.ACC_ENUM) != 0;
@@ -183,7 +184,6 @@ public class JarConverter extends M3Converter
 					values.sourceLocation(classScheme, "",  classNamePath),
 					values.sourceLocation("java+compilationUnit", "", "/jar:///" + jarFileName));
 				
-				String packageName = classNamePath.substring(0, classNamePath.lastIndexOf('/'));
 				// <|java+package:///Main|,|java+compilationUnit:///src/Main/BaseInt.java|>,
                 JarConverter.this.insert(JarConverter.this.containment,
             		values.sourceLocation("java+package", "", "/" + packageName),
