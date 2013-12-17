@@ -58,24 +58,25 @@ public class JarConverter extends M3Converter
 
 		private String extractJarName(ISourceLocation jarLoc)
 		{
-			String tmp = jarLoc.getPath().substring(0,
-				jarLoc.getPath().indexOf('!'));
-			return tmp.substring(tmp.lastIndexOf('/') + 1);
+			String jarPath = jarLoc.getPath();
+			jarPath = jarPath.substring(0, jarPath.indexOf('!'));
+			return jarPath.substring(jarPath.lastIndexOf('/') + 1);
 		}
 		
 		private String extractClassName(ISourceLocation jarLoc)
 		{
-			return jarLoc.getPath().substring(jarLoc.getPath().indexOf('!') + 1);
+			String jarPath = jarLoc.getPath();
+			return jarPath.substring(jarPath.indexOf('!') + 1);
 		}
 		
 		private void processAccess(int access, String scheme, String path, JarConverter.EOpcodeType opcodeType)
 			throws URISyntaxException
 		{
-			for(int i = 0; i < 15; i ++)
+			for(int code = 0x0001; code < 0x8000; code = code << 1)
 			{
-				if((access & (0x0001 << i)) != 0)
+				if((access & code) != 0)
 				{
-					IConstructor cons = mapFieldAccessCode(0x0001 << i, opcodeType);
+					IConstructor cons = mapFieldAccessCode(code, opcodeType);
 					if(cons != null)
 					{
 						JarConverter.this.insert(JarConverter.this.modifiers,
@@ -161,8 +162,8 @@ public class JarConverter extends M3Converter
 			classNamePath = "/" + name.replace('$', '/');
 			classScheme = "java+class";
 			classIsEnum = (access & Opcodes.ACC_ENUM) != 0;
-			if((access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
-			else if(classIsEnum) classScheme = "java+enum";
+			if(classIsEnum) classScheme = "java+enum";
+			else if((access & Opcodes.ACC_INTERFACE) != 0) classScheme = "java+interface";
 			
 			try
 			{
@@ -216,7 +217,7 @@ public class JarConverter extends M3Converter
 		@Override
 		public void visitSource(String source, String debug)
 		{
-			
+			System.out.println(String.format("SRC: %s, %s", source, debug));
 		}
 
 		@Override
@@ -306,6 +307,8 @@ public class JarConverter extends M3Converter
 				return null;
 			}
 			
+			System.out.println(String.format("METHOD: %s, %s, %s, %s, %s", access, name, desc, signature, exceptions));
+			
 			String methodType = "java+method";
 			if(name.endsWith("init>"))
 			{
@@ -313,8 +316,6 @@ public class JarConverter extends M3Converter
 				name = classNamePath.substring(classNamePath.lastIndexOf('/'));
 				desc = eliminateOutterClass(desc);
 			}
-			
-			System.out.println(String.format("METHOD: %s, %s, %s, %s, %s", access, name, desc, signature, exceptions));
 
 			String sig = Signature.toString(signature == null ? desc : signature);
 			sig = sig.substring(sig.indexOf('('), sig.indexOf(')') + 1);
