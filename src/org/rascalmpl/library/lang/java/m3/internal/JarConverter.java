@@ -53,7 +53,7 @@ public class JarConverter extends M3Converter {
                 String packageName ;
                 
                 //System.out.println(this.ClassFile);
-                
+                packageName = LogPath.substring(0,LogPath.lastIndexOf("/"));
                 if(this.LogPath.contains("$")){ this.LogPath = LogPath.replace("$","/");}
                 try {
                         ClassReader cr = new ClassReader(ctx.getResolverRegistry()
@@ -73,8 +73,6 @@ public class JarConverter extends M3Converter {
                         else this.classScheme = "java+class";
 
                         this.insert(this.containment, values.sourceLocation(classScheme, "",  "/" + className), values.sourceLocation("java+compilationUnit" , "" , "/jar:///" + jarFile));
-                        
-                        packageName = LogPath.substring(0,LogPath.lastIndexOf("/")) ;
                         this.insert(this.containment, values.sourceLocation("java+package" , "",  "/" + packageName), values.sourceLocation("java+compilationUnit" , "" , "/jar:///" + jarFile));
                         this.insert(this.containment, values.sourceLocation("java+compilationUnit" , "" , "/jar:///" + jarFile),values.sourceLocation("java+class" , "",  "/" + LogPath) );
 
