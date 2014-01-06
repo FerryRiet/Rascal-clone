@@ -39,11 +39,13 @@ public abstract class JavaToRascalConverter extends ASTVisitor {
 	private static final String DATATYPE_RASCAL_AST_EXPRESSION_NODE 	= "Expression";
 	private static final String DATATYPE_RASCAL_AST_STATEMENT_NODE 		= "Statement";
 	private static final String DATATYPE_RASCAL_AST_TYPESYMBOL_NODE 	= "TypeSymbol";
+	private static final String DATATYPE_RASCAL_AST_BOUND_NODE			= "Bound";
 	
 	private final org.eclipse.imp.pdb.facts.type.Type DATATYPE_RASCAL_AST_DECLARATION_NODE_TYPE;
 	private final org.eclipse.imp.pdb.facts.type.Type DATATYPE_RASCAL_AST_EXPRESSION_NODE_TYPE;
 	private final org.eclipse.imp.pdb.facts.type.Type DATATYPE_RASCAL_AST_STATEMENT_NODE_TYPE;
 	private final org.eclipse.imp.pdb.facts.type.Type DATATYPE_RASCAL_AST_TYPESYMBOL_NODE_TYPE;
+	private final org.eclipse.imp.pdb.facts.type.Type DATATYPE_RASCAL_AST_BOUND_NODE_TYPE;
 	protected static org.eclipse.imp.pdb.facts.type.Type DATATYPE_RASCAL_AST_TYPE_NODE_TYPE;
 	protected static org.eclipse.imp.pdb.facts.type.Type DATATYPE_RASCAL_AST_MODIFIER_NODE_TYPE;
 	protected CompilationUnit compilUnit;
@@ -63,6 +65,7 @@ public abstract class JavaToRascalConverter extends ASTVisitor {
 		this.DATATYPE_RASCAL_AST_EXPRESSION_NODE_TYPE 	= typeStore.lookupAbstractDataType(DATATYPE_RASCAL_AST_EXPRESSION_NODE);
 		this.DATATYPE_RASCAL_AST_STATEMENT_NODE_TYPE 	= typeStore.lookupAbstractDataType(DATATYPE_RASCAL_AST_STATEMENT_NODE);
 		this.DATATYPE_RASCAL_AST_TYPESYMBOL_NODE_TYPE 	= typeStore.lookupAbstractDataType(DATATYPE_RASCAL_AST_TYPESYMBOL_NODE);
+		this.DATATYPE_RASCAL_AST_BOUND_NODE_TYPE 	= typeStore.lookupAbstractDataType(DATATYPE_RASCAL_AST_BOUND_NODE);
 	}
 	
 	public void set(CompilationUnit compilUnit) {
@@ -265,6 +268,10 @@ public abstract class JavaToRascalConverter extends ASTVisitor {
 	
 	protected IConstructor constructTypeSymbolNode(String constructor, IValue... children) {
 		return constructNode(DATATYPE_RASCAL_AST_TYPESYMBOL_NODE_TYPE, constructor, children);
+	}
+	
+	protected IConstructor constructBoundNode(String constructor, IValue... children) {
+		return constructNode(DATATYPE_RASCAL_AST_BOUND_NODE_TYPE, constructor, children);
 	}
 	
 	protected void insertCompilationUnitMessages(boolean insertErrors) {

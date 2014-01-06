@@ -3,6 +3,7 @@ package org.rascalmpl.library.lang.java.m3.internal;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 
 import org.eclipse.imp.pdb.facts.IConstructor;
 import org.eclipse.imp.pdb.facts.ISourceLocation;
@@ -17,7 +18,6 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.signature.SignatureReader;
-import org.objectweb.asm.signature.SignatureVisitor;
 import org.rascalmpl.interpreter.IEvaluatorContext;
 
 //TODO Adapt debugging Sysouts to only run when actually debugging
@@ -43,17 +43,34 @@ public class JarConverter extends M3Converter
 
 	private enum EOpcodeType { CLASS, METHOD, FIELD };
 	
-	private class Jar2M3ClassVisitor extends ClassVisitor
+	class Jar2M3ClassVisitor extends ClassVisitor
 	{
 		private final String jarFileName;
 		private final String classFileName;
 		private String classNamePath;
 		private String classScheme;
 		private boolean classIsEnum;
+		private LinkedHashMap<String, IConstructor> globalTypeParams;
+		
+		public String getJarFileName()
+		{
+			return jarFileName;
+		}
+		
+		public String getClassFileName()
+		{
+			return classFileName;
+		}
+		
+		public String getClassNamePath()
+		{
+			return classNamePath;
+		}
 
 		public Jar2M3ClassVisitor(ISourceLocation jarLoc)
 		{
 			super(Opcodes.ASM4, null);
+			
 			this.jarFileName = extractJarName(jarLoc);
 			this.classFileName = extractClassName(jarLoc);
 		}
@@ -118,31 +135,6 @@ public class JarConverter extends M3Converter
 			}
 		}
 		
-		private String getParameterTypeScheme(String t)
-		{
-        	if(t == null || t.isEmpty())
-        	{
-        		throw new RuntimeException("t is null");
-        	}
-        	else if(t.endsWith("[]")) return "java+array"; //Arrays have to be special don't they....
-    		
-    		switch(t)
-    		{
-        		case "void":
-        		case "boolean":
-        		case "char":
-        		case "byte":
-        		case "short":
-        		case "int":
-        		case "float":
-        		case "long":
-        		case "double":
-        			return "java+primitiveType";
-        		default:
-        			return "java+class";
-    		}
-        }
-		
 		private String eliminateOutterClass(String desc)
 		{
 			//Find the end of the first class argument
@@ -170,6 +162,31 @@ public class JarConverter extends M3Converter
 			
 			try
 			{
+				if(signature != null)
+				{
+					SigVisitor sv = new SigVisitor(JarConverter.this, this, null, null, false);
+					new SignatureReader(signature).accept(sv);
+					
+					//M3@types
+					if(classIsEnum)
+					{
+						JarConverter.this.insert(JarConverter.this.types,
+							values.sourceLocation(classScheme, "", classNamePath),
+							constructTypeSymbolNode("enum", values.sourceLocation(classScheme, "", classNamePath)));
+					}
+					else
+					{
+						globalTypeParams = sv.getTypeParameters();
+						
+						JarConverter.this.insert(JarConverter.this.types,
+							values.sourceLocation(classScheme, "", classNamePath),
+							constructTypeSymbolNode((access & Opcodes.ACC_INTERFACE) != 0 ? "interface" : "class",
+								values.sourceLocation(classScheme, "", classNamePath),
+								values.list(globalTypeParams.values().toArray(new IValue[globalTypeParams.size()]))));
+					}
+				}
+				
+				//item declared in jar!item.class
 				JarConverter.this.insert(JarConverter.this.declarations,
 					values.sourceLocation(classScheme, "", classNamePath),
 					values.sourceLocation(jarFileName + "!" + classFileName));
@@ -177,28 +194,30 @@ public class JarConverter extends M3Converter
 				if(superName != null && !(superName.equalsIgnoreCase("java/lang/Object")
 					|| superName.equalsIgnoreCase("java/lang/Enum")))
 				{
+					//x extends y
 					JarConverter.this.insert(JarConverter.this.extendsRelations,
 						values.sourceLocation(classScheme, "", classNamePath),
 						values.sourceLocation(classScheme, "", "/" + superName));
 				}
 				
+				//Item contains jar? TODO
 				JarConverter.this.insert(JarConverter.this.containment,
 					values.sourceLocation(classScheme, "",  classNamePath),
 					values.sourceLocation("java+compilationUnit", "", "/jar:///" + jarFileName));
-				
-				String packageName = classFileName.substring(0, classFileName.lastIndexOf('/'));
-				// <|java+package:///Main|,|java+compilationUnit:///src/Main/BaseInt.java|>,
+				//Package contains jar? TODO
                 JarConverter.this.insert(JarConverter.this.containment,
-            		values.sourceLocation("java+package", "", "/" + packageName),
+            		values.sourceLocation("java+package", "", "/" + classFileName.substring(0, classFileName.lastIndexOf('/'))),
             		values.sourceLocation("java+compilationUnit", "", "/jar:///" + jarFileName));
+                //CompUnit contains item
                 JarConverter.this.insert(JarConverter.this.containment,
             		values.sourceLocation("java+compilationUnit", "", "/jar:///" + jarFileName),
-            		values.sourceLocation("java+class", "", classNamePath));
+            		values.sourceLocation(classScheme, "", classNamePath));
 
 				processAccess(access, classScheme, classNamePath, JarConverter.EOpcodeType.CLASS);
 				
 				if((access & Opcodes.ACC_DEPRECATED) != 0)
                 {
+					//Deprecated annotation present
                 	JarConverter.this.insert(JarConverter.this.annotations,
             			values.sourceLocation(classScheme, "", classNamePath),
             			values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));
@@ -206,16 +225,11 @@ public class JarConverter extends M3Converter
 				
 				for (String iFace : interfaces)
 				{
+					//x implements y
 					JarConverter.this.insert(JarConverter.this.implementsRelations,
 						values.sourceLocation(classScheme, "", classNamePath),
 						values.sourceLocation("java+interface", "", "/" + iFace));
 				}
-				
-				
-				//M3@types
-				JarConverter.this.insert(JarConverter.this.types,
-					values.sourceLocation(classScheme, "", classNamePath),
-					constructTypeSymbolNode("class", values.sourceLocation(classScheme, "", classNamePath), values.list(TF.sourceLocationType())));
 			}
 			catch (URISyntaxException e)
 			{
@@ -242,6 +256,7 @@ public class JarConverter extends M3Converter
 			
 			try
 			{
+				//x contains inner class y
 				JarConverter.this.insert(JarConverter.this.containment,
 					values.sourceLocation(classScheme, "", classNamePath),
 					values.sourceLocation("java+class", "", "/" + name.replace('$', '/')));
@@ -268,7 +283,7 @@ public class JarConverter extends M3Converter
 		@Override
 		public FieldVisitor visitField(int access, String name, String desc, String signature, Object value)
 		{
-			if((access & Opcodes.ACC_SYNTHETIC) != 0) return null;
+			if((access & Opcodes.ACC_SYNTHETIC) != 0) return null; //Compiler generated field. Ignore it.
 			
 			System.out.println(String.format("FIELD: %s, %s, %s, %s, %s", access, name, desc, signature, value));
 			
@@ -277,60 +292,38 @@ public class JarConverter extends M3Converter
 			
 			try
 			{
+				//Field declared in classFile
 				JarConverter.this.insert(JarConverter.this.declarations,
 					values.sourceLocation(fieldScheme, "", classNamePath + "/" + name),
 					values.sourceLocation(jarFileName + "!" + classFileName));
 				
+				//Class contains field
 				JarConverter.this.insert(JarConverter.this.containment,
 					values.sourceLocation(classScheme, "", classNamePath),
 					values.sourceLocation(fieldScheme, "", classNamePath + "/" + name));
 				
-				if(!isEnumConstant)
+				if(!isEnumConstant) //No access modifiers or signatures for enum constants
 				{
 					processAccess(access, fieldScheme, classNamePath + "/" + name, JarConverter.EOpcodeType.FIELD);
+					
+					SigVisitor sv = new SigVisitor(JarConverter.this, this, globalTypeParams, name, false);
+					new SignatureReader(signature != null ? signature : desc).accept(sv);
+				}
+				else
+				{
+					//Enum constants depend on the enum
+					JarConverter.this.insert(JarConverter.this.typeDependency,
+            			values.sourceLocation(fieldScheme, "", classNamePath + "/" + name),
+            			values.sourceLocation(classScheme, "", classNamePath));
 				}
 				
+				//Deprecated annotation present
 				if((access & Opcodes.ACC_DEPRECATED) != 0)
                 {
                 	JarConverter.this.insert(JarConverter.this.annotations,
             			values.sourceLocation(fieldScheme, "", classNamePath + "/" + name),
             			values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));
                 }
-				
-				
-				//M3@types
-				if(!isEnumConstant)
-				{
-					String type = Signature.toString(signature == null ? desc : signature);
-
-					boolean isArrayType = type.endsWith("[]");
-					String fieldType = isArrayType ? type.substring(0, type.indexOf('[')) : type;
-					
-					IConstructor returnValue;
-					if(!fieldType.equalsIgnoreCase("object") && getParameterTypeScheme(fieldType) == "java+class")
-					{
-						returnValue = constructTypeSymbolNode("class", values.sourceLocation("java+class", "", "/" + fieldType), values.list(TF.sourceLocationType()));
-					}
-					else
-					{
-						returnValue = constructTypeSymbolNode(fieldType);
-					}
-					
-					if(isArrayType)
-					{
-						fieldType = type;
-						for(int dims = 1; fieldType.endsWith("[]"); dims++)
-						{
-							fieldType = fieldType.substring(0, fieldType.length() - 2);
-
-							returnValue = constructTypeSymbolNode("array", returnValue, values.integer(dims));
-						}
-					}
-					
-					JarConverter.this.insert(JarConverter.this.types,
-						values.sourceLocation(fieldScheme, "", classNamePath + "/" + name),
-						returnValue);
-				}
 			}
 			catch (URISyntaxException e)
 			{
@@ -344,12 +337,14 @@ public class JarConverter extends M3Converter
 		{
 			System.out.println(String.format("METHOD: %s, %s, %s, %s, %s", access, name, desc, signature, exceptions));
 			
+			//Ignore enum functions
 			if(classIsEnum && (name.equalsIgnoreCase("values")
 				|| name.equalsIgnoreCase("valueOf")))
 			{
 				return null;
 			}
 			
+			//Properly set constructor scheme and name
 			String methodScheme = "java+method";
 			if(name.startsWith("<"))
 			{
@@ -363,25 +358,21 @@ public class JarConverter extends M3Converter
 			sig = sig.replaceAll("\\s+", "");
 			sig = sig.replace('/', '.');
 			
-			if(signature != null)
-			{
-				SignatureReader sr = new SignatureReader(signature);
-	            sr.accept(new SigVisitor());
-			}
-			
 			try
 			{
+				//Method declared in classFile
 				JarConverter.this.insert(JarConverter.this.declarations,
 					values.sourceLocation(methodScheme, "", classNamePath + "/" + name + sig),
 					values.sourceLocation(jarFileName + "!" + classFileName));
 				
+				//Class contains method
 				JarConverter.this.insert(JarConverter.this.containment,
 					values.sourceLocation(classScheme, "", classNamePath),
 					values.sourceLocation(methodScheme, "", classNamePath + "/" + name + sig));
 				
 				processAccess(access, methodScheme, classNamePath + "/" + name + sig, JarConverter.EOpcodeType.METHOD);
 				
-				// Deprecated method emit type dependency Deprecated.
+				//Deprecated annotation present
                 if((access & Opcodes.ACC_DEPRECATED) != 0)
                 {
                 	JarConverter.this.insert(JarConverter.this.annotations,
@@ -389,98 +380,40 @@ public class JarConverter extends M3Converter
             			values.sourceLocation("java+interface", "", "/java/lang/Deprecated"));
                 }
                 
-				//Loop over all parameters in the signature
-                ArrayList<IValue> paramsOut = new ArrayList<IValue>();
-                if(sig != null && !sig.isEmpty() && !sig.equals("()"))
-                {
-					String[] params = sig.replace("(", "").replace(")", "").split(",");
-					for(int i = 0; i < params.length; i++)
-					{
-						JarConverter.this.insert(JarConverter.this.typeDependency,
-							values.sourceLocation("java+parameter", "", classNamePath + "/" + name + sig + "/" + params[i] + i),
-							values.sourceLocation("java+primitiveType", "", params[i]));
-						
-						
-						//M3@types
-						boolean isArrayType = params[i].endsWith("[]");
-						String paramType = isArrayType ? params[i].substring(0, params[i].indexOf('[')) : params[i];
-						
-						IConstructor paramValue;
-						if(!paramType.equalsIgnoreCase("object") && getParameterTypeScheme(paramType) == "java+class")
-						{
-							paramValue = constructTypeSymbolNode("class", values.sourceLocation("java+class", "", "/" + paramType), values.list(TF.sourceLocationType()));
-						}
-						else
-						{
-							paramValue = constructTypeSymbolNode(paramType);
-						}
-						
-						if(isArrayType)
-						{
-							paramType = params[i];
-							for(int dims = 1; paramType.endsWith("[]"); dims++)
-							{
-								paramType = paramType.substring(0, paramType.length() - 2);
-
-								paramValue = constructTypeSymbolNode("array", paramValue, values.integer(dims));
-							}
-						}
-						
-						JarConverter.this.insert(JarConverter.this.types,
-							values.sourceLocation("java+parameter", "", classNamePath + "/" + name + sig + "/" + params[i] + i),
-							paramValue);
-						
-						paramsOut.add(paramValue);
-					}
-                }
-				
-				//Return type
-            	String rType = Signature.toString(signature == null ? desc : signature);
-            	rType = rType.substring(0, rType.indexOf(' '));
-            	
-            	ISourceLocation sLoc = methodScheme.equals("java+constructor") ? values.sourceLocation("java+class", "", classNamePath)
-        			: values.sourceLocation(getParameterTypeScheme(rType), "", rType);
                 
-				JarConverter.this.insert(JarConverter.this.typeDependency,
-					values.sourceLocation(methodScheme, "", classNamePath + "/" + name + sig),
-					sLoc);
-				
-				
+            	String sigToVisit = (signature != null ? signature : desc);
+            	boolean ignoreReturnType = false;
+            	if(methodScheme == "java+constructor")
+                {
+            		//Constructor depends on the class
+    				JarConverter.this.insert(JarConverter.this.typeDependency,
+    					values.sourceLocation(methodScheme, "", classNamePath + "/" + name + sig),
+    					values.sourceLocation(classScheme, "", classNamePath));
+            		
+    				//Don't include the return type; it's a constructor
+    				ignoreReturnType = true;
+            		//sigToVisit = sigToVisit.substring(sigToVisit.indexOf('('), sigToVisit.indexOf(')') + 1);
+                }
+            	
+            	SigVisitor sv = new SigVisitor(JarConverter.this, this, globalTypeParams, name + sig, ignoreReturnType);
+            	new SignatureReader(sigToVisit).accept(sv);
+            	
 				//M3@types
+            	ArrayList<IValue> paramValues = sv.getParameters();
+            	IValue paramList = values.list(paramValues.toArray(new IValue[paramValues.size()]));
+            	
 				IConstructor methodType;
 				if(methodScheme == "java+constructor")
 				{
-					methodType = constructTypeSymbolNode("constructor", values.sourceLocation(methodScheme, "", classNamePath + "/" + name + sig),
-						values.list(paramsOut.toArray(new IValue[paramsOut.size()])));
+					methodType = constructTypeSymbolNode("constructor", values.sourceLocation(methodScheme, "", classNamePath + "/" + name + sig), paramList);
 				}
 				else
 				{
-					boolean isArrayType = rType.endsWith("[]");
-					String returnType = isArrayType ? rType.substring(0, rType.indexOf('[')) : rType;
-					
-					IConstructor returnValue;
-					if(!returnType.equalsIgnoreCase("object") && getParameterTypeScheme(returnType) == "java+class")
-					{
-						returnValue = constructTypeSymbolNode("class", values.sourceLocation("java+class", "", "/" + returnType), values.list(TF.sourceLocationType()));
-					}
-					else
-					{
-						returnValue = constructTypeSymbolNode(returnType);
-					}
-					
-					if(isArrayType)
-					{
-						returnType = rType;
-						for(int dims = 1; returnType.endsWith("[]"); dims++)
-						{
-							returnType = returnType.substring(0, returnType.length() - 2);
-
-							returnValue = constructTypeSymbolNode("array", returnValue, values.integer(dims));
-						}
-					}
-					
-					methodType = constructTypeSymbolNode("method", values.sourceLocation(methodScheme, "", classNamePath + "/" + name + sig), values.list(TF.sourceLocationType()),
-						returnValue, values.list(paramsOut.toArray(new IValue[paramsOut.size()])));
+					LinkedHashMap<String, IConstructor> typeParams = sv.getTypeParameters();
+	            	IValue typeParamsList = values.list(typeParams.values().toArray(new IValue[typeParams.size()]));
+	            	
+					methodType = constructTypeSymbolNode("method", values.sourceLocation(methodScheme, "", classNamePath + "/" + name + sig),
+						typeParamsList, sv.getReturnValue(), paramList);
 				}
 				
 				JarConverter.this.insert(JarConverter.this.types,
@@ -498,35 +431,6 @@ public class JarConverter extends M3Converter
 		public void visitEnd()
 		{
 			
-		}
-		
-		private class SigVisitor extends SignatureVisitor
-		{
-			public SigVisitor()
-			{
-				super(Opcodes.ASM4);
-			}
-		
-			public void visitFormalTypeParameter(String name)
-			{
-				System.out.println(String.format("TYPE PARAM: %s", name));
-				
-				try
-				{
-					JarConverter.this.insert(JarConverter.this.declarations,
-						values.sourceLocation("java+typeVariable", "", classNamePath + "/" + name),
-						values.sourceLocation(jarFileName + "!" + classFileName) );
-				}
-				catch (URISyntaxException e)
-				{
-					e.printStackTrace();
-				}
-			}
-			
-			public void visitBaseType(char descriptor)
-			{
-				System.out.println(String.format("TYPE PARAM - BASE TYPE: %s", descriptor));
-			}
 		}
 	}
 }
