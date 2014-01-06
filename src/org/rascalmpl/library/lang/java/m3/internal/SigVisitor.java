@@ -154,8 +154,6 @@ class SigVisitor extends SignatureVisitor
 				
 				//Types of item is standard type.
 				createTypesEntry(scheme, cv.getClassNamePath() + "/" + path, cons);
-				
-				IValue typeParamsList = JavaToRascalConverter.values.list(typeParams.values().toArray(new IValue[typeParams.size()]));
 			}
 			catch (URISyntaxException e)
 			{
@@ -251,8 +249,6 @@ class SigVisitor extends SignatureVisitor
 					
 					//Type entry of item is class.
 					createTypesEntry(scheme, cv.getClassNamePath() + "/" + path, cons);
-					
-					IValue typeParamsList = JavaToRascalConverter.values.list(typeParams.values().toArray(new IValue[typeParams.size()]));
 				}
 			}
 			catch (URISyntaxException e)
@@ -309,8 +305,6 @@ class SigVisitor extends SignatureVisitor
 				
 				//Type entry for item
 				createTypesEntry(scheme, cv.getClassNamePath() + "/" + path, cons);
-				
-				IValue typeParamsList = JavaToRascalConverter.values.list(typeParams.values().toArray(new IValue[typeParams.size()]));
 			}
 			catch (URISyntaxException e)
 			{
