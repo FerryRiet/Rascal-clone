@@ -38,10 +38,14 @@ public abstract class JavaToRascalConverter extends ASTVisitor {
 	private static final String DATATYPE_RASCAL_AST_DECLARATION_NODE 	= "Declaration";
 	private static final String DATATYPE_RASCAL_AST_EXPRESSION_NODE 	= "Expression";
 	private static final String DATATYPE_RASCAL_AST_STATEMENT_NODE 		= "Statement";
+	private static final String DATATYPE_RASCAL_AST_TYPESYMBOL_NODE 	= "TypeSymbol";
+	private static final String DATATYPE_RASCAL_AST_BOUND_NODE			= "Bound";
 	
 	private final org.eclipse.imp.pdb.facts.type.Type DATATYPE_RASCAL_AST_DECLARATION_NODE_TYPE;
 	private final org.eclipse.imp.pdb.facts.type.Type DATATYPE_RASCAL_AST_EXPRESSION_NODE_TYPE;
 	private final org.eclipse.imp.pdb.facts.type.Type DATATYPE_RASCAL_AST_STATEMENT_NODE_TYPE;
+	private final org.eclipse.imp.pdb.facts.type.Type DATATYPE_RASCAL_AST_TYPESYMBOL_NODE_TYPE;
+	private final org.eclipse.imp.pdb.facts.type.Type DATATYPE_RASCAL_AST_BOUND_NODE_TYPE;
 	protected static org.eclipse.imp.pdb.facts.type.Type DATATYPE_RASCAL_AST_TYPE_NODE_TYPE;
 	protected static org.eclipse.imp.pdb.facts.type.Type DATATYPE_RASCAL_AST_MODIFIER_NODE_TYPE;
 	protected CompilationUnit compilUnit;
@@ -60,6 +64,8 @@ public abstract class JavaToRascalConverter extends ASTVisitor {
 		this.DATATYPE_RASCAL_AST_DECLARATION_NODE_TYPE 	= typeStore.lookupAbstractDataType(DATATYPE_RASCAL_AST_DECLARATION_NODE);
 		this.DATATYPE_RASCAL_AST_EXPRESSION_NODE_TYPE 	= typeStore.lookupAbstractDataType(DATATYPE_RASCAL_AST_EXPRESSION_NODE);
 		this.DATATYPE_RASCAL_AST_STATEMENT_NODE_TYPE 	= typeStore.lookupAbstractDataType(DATATYPE_RASCAL_AST_STATEMENT_NODE);
+		this.DATATYPE_RASCAL_AST_TYPESYMBOL_NODE_TYPE 	= typeStore.lookupAbstractDataType(DATATYPE_RASCAL_AST_TYPESYMBOL_NODE);
+		this.DATATYPE_RASCAL_AST_BOUND_NODE_TYPE 	= typeStore.lookupAbstractDataType(DATATYPE_RASCAL_AST_BOUND_NODE);
 	}
 	
 	public void set(CompilationUnit compilUnit) {
@@ -237,28 +243,35 @@ public abstract class JavaToRascalConverter extends ASTVisitor {
     }
 	}
 	
-	protected IValue constructDeclarationNode(String constructor, IValue... children) {
+	private IConstructor constructNode(org.eclipse.imp.pdb.facts.type.Type adt, String constructor, IValue... children)
+	{
 		org.eclipse.imp.pdb.facts.type.Type args = TF.tupleType(removeNulls(children));
-		org.eclipse.imp.pdb.facts.type.Type constr = typeStore.lookupConstructor(DATATYPE_RASCAL_AST_DECLARATION_NODE_TYPE, constructor, args);
+		org.eclipse.imp.pdb.facts.type.Type constr = typeStore.lookupConstructor(adt, constructor, args);
 		return values.constructor(constr, removeNulls(children));
 	}
 	
-	protected IValue constructExpressionNode(String constructor, IValue... children) {
-		org.eclipse.imp.pdb.facts.type.Type args = TF.tupleType(removeNulls(children));
-		org.eclipse.imp.pdb.facts.type.Type constr = typeStore.lookupConstructor(DATATYPE_RASCAL_AST_EXPRESSION_NODE_TYPE, constructor, args);
-		return values.constructor(constr, removeNulls(children));
+	protected IConstructor constructDeclarationNode(String constructor, IValue... children) {
+		return constructNode(DATATYPE_RASCAL_AST_DECLARATION_NODE_TYPE, constructor, children);
 	}
 	
-	protected IValue constructStatementNode(String constructor, IValue... children) {
-		org.eclipse.imp.pdb.facts.type.Type args = TF.tupleType(removeNulls(children));
-		org.eclipse.imp.pdb.facts.type.Type constr = typeStore.lookupConstructor(DATATYPE_RASCAL_AST_STATEMENT_NODE_TYPE, constructor, args);
-		return values.constructor(constr, removeNulls(children));
+	protected IConstructor constructExpressionNode(String constructor, IValue... children) {
+		return constructNode(DATATYPE_RASCAL_AST_EXPRESSION_NODE_TYPE, constructor, children);
 	}
 	
-	protected IValue constructTypeNode(String constructor, IValue... children) {
-		org.eclipse.imp.pdb.facts.type.Type args = TF.tupleType(removeNulls(children));
-		org.eclipse.imp.pdb.facts.type.Type constr = typeStore.lookupConstructor(DATATYPE_RASCAL_AST_TYPE_NODE_TYPE, constructor, args);
-		return values.constructor(constr, removeNulls(children));
+	protected IConstructor constructStatementNode(String constructor, IValue... children) {
+		return constructNode(DATATYPE_RASCAL_AST_STATEMENT_NODE_TYPE, constructor, children);
+	}
+	
+	protected IConstructor constructTypeNode(String constructor, IValue... children) {
+		return constructNode(DATATYPE_RASCAL_AST_TYPE_NODE_TYPE, constructor, children);
+	}
+	
+	protected IConstructor constructTypeSymbolNode(String constructor, IValue... children) {
+		return constructNode(DATATYPE_RASCAL_AST_TYPESYMBOL_NODE_TYPE, constructor, children);
+	}
+	
+	protected IConstructor constructBoundNode(String constructor, IValue... children) {
+		return constructNode(DATATYPE_RASCAL_AST_BOUND_NODE_TYPE, constructor, children);
 	}
 	
 	protected void insertCompilationUnitMessages(boolean insertErrors) {
