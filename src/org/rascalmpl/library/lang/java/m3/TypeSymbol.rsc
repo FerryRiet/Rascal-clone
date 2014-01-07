@@ -5,6 +5,7 @@ extend analysis::m3::TypeSymbol;
 data Bound 
   = \super(TypeSymbol bound)
   | \extends(TypeSymbol bound)
+  | \instanceof(TypeSymbol bound)
   | \unbounded()
   ;
   
