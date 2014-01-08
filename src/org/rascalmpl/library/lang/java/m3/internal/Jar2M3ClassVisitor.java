@@ -16,6 +16,7 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.signature.SignatureReader;
+import org.rascalmpl.library.lang.java.m3.internal.Jar2M3SigEntryData.ESigLocation;
 
 //TODO Adapt debugging Sysouts to only run when actually debugging
 class Jar2M3ClassVisitor extends ClassVisitor
@@ -270,7 +271,7 @@ class Jar2M3ClassVisitor extends ClassVisitor
 			{
 				processAccess(access, fieldScheme, classNamePath + "/" + name, EOpcodeType.FIELD);
 				
-				Jar2M3SignatureVisitor sv = new Jar2M3SignatureVisitor(jc, globalTypeParams, jarFileName, classFileName, classNamePath, name, 0);
+				Jar2M3SignatureVisitor sv = new Jar2M3SignatureVisitor(jc, globalTypeParams, jarFileName, classFileName, classNamePath, name, ESigLocation.UNKNOWN);
 				new SignatureReader(signature != null ? signature : desc).accept(sv);
 			}
 			else
@@ -338,7 +339,7 @@ class Jar2M3ClassVisitor extends ClassVisitor
 			processAccess(access, methodScheme, classNamePath + "/" + name + sig, EOpcodeType.METHOD);
 			
 			String sigToVisit = (signature != null ? signature : desc);
-        	int ignoreSigLoc = 0;
+        	ESigLocation ignoreSigLoc = ESigLocation.UNKNOWN;
         	if(methodScheme == "java+constructor")
             {
         		//Constructor depends on the class
@@ -347,7 +348,7 @@ class Jar2M3ClassVisitor extends ClassVisitor
 					JavaToRascalConverter.values.sourceLocation(classScheme, "", classNamePath));
         		
 				//Don't include the return type; it's a constructor
-				ignoreSigLoc = Jar2M3SignatureVisitor.ParamType.L_RETURN;
+				ignoreSigLoc = ESigLocation.RETURN;
             }
         	
         	//M3@types
