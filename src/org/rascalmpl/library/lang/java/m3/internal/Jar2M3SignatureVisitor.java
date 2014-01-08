@@ -22,6 +22,7 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 	private final String jarFileName;
 	private final String classFileName;
 	private final String classNamePath;
+	private final String elemScheme;
 	private final String elemPath;
 	private final ESigLocation ignoreSigLoc;
 	
@@ -40,13 +41,13 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 	//Reset for each item
 	private Jar2M3SigEntryData entryData;
 	
-	public Jar2M3SignatureVisitor(JarConverter jc, String jarFileName, String classFileName, String classNamePath)
+	public Jar2M3SignatureVisitor(JarConverter jc, String jarFileName, String classFileName, String classNamePath, String elemScheme)
 	{
-		this(jc, null, jarFileName, classFileName, classNamePath, null, ESigLocation.UNKNOWN);
+		this(jc, null, jarFileName, classFileName, classNamePath, elemScheme, "", ESigLocation.UNKNOWN);
 	}
 	
 	public Jar2M3SignatureVisitor(JarConverter jc, LinkedHashMap<String, IConstructor> globalTypeParams,
-		String jarFileName, String classFileName, String classNamePath, String elemPath, ESigLocation ignoreSigLoc)
+		String jarFileName, String classFileName, String classNamePath, String elemScheme, String elemPath, ESigLocation ignoreSigLoc)
 	{
 		super(Opcodes.ASM4);
 		
@@ -55,6 +56,7 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 		this.jarFileName = jarFileName;
 		this.classFileName = classFileName;
 		this.classNamePath = classNamePath;
+		this.elemScheme = elemScheme;
 		this.elemPath = elemPath;
 		this.ignoreSigLoc = ignoreSigLoc;
 		
@@ -139,43 +141,46 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 		//Type parameters don't have @types or @typeDependency entries
 		if(stackResult == null || entryData.sigLoc == ESigLocation.TYPEPARAM) return;
 		
+		String scheme = elemScheme;
 		String path = elemPath;
 		
 		try
 		{
-			String scheme;
-			
-			if(entryData.sigLoc != ESigLocation.RETURN)
+			if(entryData.sigLoc == ESigLocation.RETURN)
 			{
-				switch (entryData.sigLoc)
-				{
-					case PARAM:
-						scheme = "java+parameter";
-						path += "/param" + paramInd;
-						params.add(stackResult);
-						break;
-					case SUPER:
-						scheme = "java+field";
-						break;
-					default:
-						throw new RuntimeException("SigVisitor encountered an unknown SigLoc while parsing the signature.");
-				}
-				
-				//Types entry of item.
-				jc.insert(jc.types, JavaToRascalConverter.values.sourceLocation(scheme, "", classNamePath + "/" + path), stackResult);
+				returnValue = stackResult;
 			}
 			else
 			{
-				scheme = "java+method";
-				returnValue = stackResult;
+				if (entryData.sigLoc == ESigLocation.PARAM)
+				{
+					String paramName = "/param" + paramInd;
+					scheme = "java+parameter";
+					path += paramName;
+					params.add(stackResult);
+					
+					//Param contained in method
+					jc.insert(jc.containment,
+						JavaToRascalConverter.values.sourceLocation(elemScheme, "", elemPath),
+						JavaToRascalConverter.values.sourceLocation(scheme, "", path));
+					
+					//Param declared in classFile
+					jc.insert(jc.declarations,
+						JavaToRascalConverter.values.sourceLocation(scheme, "", path),
+						JavaToRascalConverter.values.sourceLocation(jarFileName + "!" + classFileName));
+				}
+				
+				//Types entry of item.
+				jc.insert(jc.types, JavaToRascalConverter.values.sourceLocation(scheme, "", path), stackResult);
 			}
 			
 			for(Entry<String, String> entry : stackDependencies)
 			{
 				//Item depends on type x
 				jc.insert(jc.typeDependency,
-					JavaToRascalConverter.values.sourceLocation(scheme, "", classNamePath + "/" + path),
+					JavaToRascalConverter.values.sourceLocation(scheme, "", path),
 					JavaToRascalConverter.values.sourceLocation(entry.getValue(), "", entry.getKey()));
+				//TODO mismatch between src & jar; in jar if param depends on X, method will also depend on X.
 			}
 		}
 		catch (URISyntaxException e)
@@ -350,6 +355,11 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 		
 		try
 		{
+			//TypeVar contained in item
+			jc.insert(jc.containment,
+				JavaToRascalConverter.values.sourceLocation(elemScheme, "", elemPath),
+				JavaToRascalConverter.values.sourceLocation("java+typeVariable", "", classNamePath + "/" + name));
+			
 			//TypeVar declared in classFile
 			jc.insert(jc.declarations,
 				JavaToRascalConverter.values.sourceLocation("java+typeVariable", "", classNamePath + "/" + name),

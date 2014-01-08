@@ -132,7 +132,7 @@ class Jar2M3ClassVisitor extends ClassVisitor
 			IList typeParamsList = JavaToRascalConverter.values.list(JavaToRascalConverter.TF.voidType());
 			if(signature != null)
 			{
-				Jar2M3SignatureVisitor sv = new Jar2M3SignatureVisitor(jc, jarFileName, classFileName, classNamePath);
+				Jar2M3SignatureVisitor sv = new Jar2M3SignatureVisitor(jc, jarFileName, classFileName, classNamePath, classScheme);
 				new SignatureReader(signature).accept(sv);
 				
 				globalTypeParams = sv.getTypeParameters();
@@ -271,7 +271,8 @@ class Jar2M3ClassVisitor extends ClassVisitor
 			{
 				processAccess(access, fieldScheme, classNamePath + "/" + name, EOpcodeType.FIELD);
 				
-				Jar2M3SignatureVisitor sv = new Jar2M3SignatureVisitor(jc, globalTypeParams, jarFileName, classFileName, classNamePath, name, ESigLocation.UNKNOWN);
+				Jar2M3SignatureVisitor sv = new Jar2M3SignatureVisitor(jc, globalTypeParams, jarFileName, classFileName, classNamePath,
+						fieldScheme, classNamePath + "/" + name, ESigLocation.UNKNOWN);
 				new SignatureReader(signature != null ? signature : desc).accept(sv);
 			}
 			else
@@ -320,9 +321,11 @@ class Jar2M3ClassVisitor extends ClassVisitor
 		}
 		
 		//Properly set constructor scheme and name
+		boolean isConstructor = false;
 		String methodScheme = "java+method";
 		if(name.startsWith("<"))
 		{
+			isConstructor = true;
 			methodScheme = "java+constructor";
 			name = classNamePath.substring(classNamePath.lastIndexOf('/'));
 			desc = eliminateOutterClass(desc);
@@ -340,7 +343,7 @@ class Jar2M3ClassVisitor extends ClassVisitor
 			
 			String sigToVisit = (signature != null ? signature : desc);
         	ESigLocation ignoreSigLoc = ESigLocation.UNKNOWN;
-        	if(methodScheme == "java+constructor")
+        	if(isConstructor)
             {
         		//Constructor depends on the class
 				jc.insert(jc.typeDependency,
@@ -352,14 +355,15 @@ class Jar2M3ClassVisitor extends ClassVisitor
             }
         	
         	//M3@types
-        	Jar2M3SignatureVisitor sv = new Jar2M3SignatureVisitor(jc, globalTypeParams, jarFileName, classFileName, classNamePath, name + sig, ignoreSigLoc);
+        	Jar2M3SignatureVisitor sv = new Jar2M3SignatureVisitor(jc, globalTypeParams, jarFileName, classFileName, classNamePath,
+    			methodScheme, classNamePath + "/" + name + sig, ignoreSigLoc);
         	new SignatureReader(sigToVisit).accept(sv);
         	
         	ArrayList<IConstructor> paramValues = sv.getParameters();
         	IValue paramList = JavaToRascalConverter.values.list(paramValues.toArray(new IValue[paramValues.size()]));
         	
 			IConstructor methodType;
-			if(methodScheme == "java+constructor")
+			if(isConstructor)
 			{
 				methodType = jc.constructTypeSymbolNode("constructor", JavaToRascalConverter.values.sourceLocation(methodScheme, "", classNamePath + "/" + name + sig), paramList);
 			}
