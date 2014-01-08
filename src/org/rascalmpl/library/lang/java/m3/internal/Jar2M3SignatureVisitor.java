@@ -16,28 +16,31 @@ import org.objectweb.asm.signature.SignatureVisitor;
 
 class Jar2M3SignatureVisitor extends SignatureVisitor
 {
-	//IS_*	= What location in the signature (ISs are Mutually Exlusive)
+	//L_*	= What location in the signature (Ls are Mutually Exlusive)
 	//A_*	= TYPEARG specifics (As are Mutually Exlusive)
 	//T_*	= Type (Ts are Mutually Exlusive)
 	//B_*	= Bound to x indicator (Bs are Mutually Exlusive)
-	static class ParamType
+	static class ParamType //TODO Maybe make pType a class with enum fields instead. Marked fields with what it would become
 	{
+		//Boolean (isArray)
 		public final static int ARRAY = 1;
-		public final static int IS_PARAM = 2;
-		public final static int IS_RETURN = 4;
-		public final static int IS_TYPEPARAM = 8;
-		public final static int IS_SUPER = 16;
-		
-		public final static int TYPEARG = 32;
+		//Enum (ESigLocation)
+		public final static int L_PARAM = 2;
+		public final static int L_RETURN = 4;
+		public final static int L_TYPEPARAM = 8;
+		public final static int L_SUPER = 16;
+		public final static int L_TYPEARG = 32;
+		//Enum (EBoundType)
 		public final static int A_LOWERBOUND = 64;
 		public final static int A_UPPERBOUND = 128;
 		public final static int A_INSTANCE = 256;
-		
-		public final static int T_TYPEVAR = 512;
-		public final static int T_CLASS = 1024;
-		
-		public final static int B_CLASS = 2048;
-		public final static int B_INTERFACE = 4096;
+		//Enum (EType)
+		public final static int T_BASE = 512;
+		public final static int T_TYPEVAR = 1024;
+		public final static int T_CLASS = 2048;
+		//Boolean (isInterface)
+		public final static int B_CLASS = 4096;
+		public final static int B_INTERFACE = 8192;
 	};
 	
 	private final JarConverter jc;
@@ -45,7 +48,7 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 	private final String classFileName;
 	private final String classNamePath;
 	private final String elemPath;
-	private final int ignoreType;
+	private final int ignoreSigLoc;
 	
 	private LinkedHashMap<String, IConstructor> globalTypeParams;
 	private LinkedHashMap<String, IConstructor> typeParams;
@@ -59,7 +62,10 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 	
 	private int paramInd = -1; //Index of the param if (pType & ParamType.T_PARAM) != 0
 	
+	//These are use to build the final entries
 	private Stack<SimpleEntry<String, Integer>> itemStack;
+	private LinkedHashMap<String, String> stackDep;
+	private IConstructor stackResult;
 	
 	public Jar2M3SignatureVisitor(JarConverter jc, String jarFileName, String classFileName, String classNamePath)
 	{
@@ -67,7 +73,7 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 	}
 	
 	public Jar2M3SignatureVisitor(JarConverter jc, LinkedHashMap<String, IConstructor> globalTypeParams,
-		String jarFileName, String classFileName, String classNamePath, String elemPath, int ignoreType)
+		String jarFileName, String classFileName, String classNamePath, String elemPath, int ignoreSigLoc)
 	{
 		super(Opcodes.ASM4);
 		
@@ -77,11 +83,13 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 		this.classFileName = classFileName;
 		this.classNamePath = classNamePath;
 		this.elemPath = elemPath;
-		this.ignoreType = ignoreType;
+		this.ignoreSigLoc = ignoreSigLoc;
 		
 		typeParams = new LinkedHashMap<String, IConstructor>();
 		params = new ArrayList<IConstructor>();
+		
 		itemStack = new Stack<SimpleEntry<String, Integer>>();
+		stackDep = new LinkedHashMap<String, String>();
 	}
 	
 	public LinkedHashMap<String, IConstructor> getTypeParameters()
@@ -99,11 +107,106 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 		return returnValue;
 	}
 	
-	private void reset() //NOTE: Should be called by all terminating functions
+	private void reset() //NOTE: Should be called by all type functions (base, class, type param)
 	{
 		pType = 0;
 		typeParamName = null;
 		arrayDim = 0;
+	}
+	
+	private void buildStackResult() //NOTE: Should be called by all terminating functions
+	{
+		if(itemStack.isEmpty()) return;
+		
+		SimpleEntry<String, Integer> entry = itemStack.pop();
+		String type = entry.getKey();
+		int pType = entry.getValue();
+		
+		if((pType & ParamType.T_BASE) != 0)
+		{
+			stackResult = instantiateBaseType(type);
+		}
+		else if((pType & ParamType.T_TYPEVAR) != 0)
+		{
+			stackResult = instantiateTypeVar(type);
+		}
+		else if((pType & ParamType.T_CLASS) != 0)
+		{
+			stackResult = instantiateClassType(type, stackResult, (pType & ParamType.B_INTERFACE) != 0);
+		}
+		else
+		{
+			throw new RuntimeException("SigVisitor encountered an unknown type while parsing the signature.");
+		}
+		
+		if((pType & ParamType.A_LOWERBOUND) != 0) //Generic<? super X>
+		{
+			stackResult = jc.constructTypeSymbolNode("wildcard", jc.constructBoundNode("super", stackResult));
+		}
+		else if((pType & ParamType.A_UPPERBOUND) != 0) //Generic<? extends X>
+		{
+			stackResult = jc.constructTypeSymbolNode("wildcard", jc.constructBoundNode("extends", stackResult));
+		}
+		else if((pType & ParamType.A_INSTANCE) != 0) //Generic<X>
+		{
+			//TODO Should this be wrapped in a wildcard? It's not really written as Generic<? instanceof X> in Java...
+			//In that case we'll need another wrapping TypeSymbol or move 'instanceof' from Bound to TypeSymbol.
+			stackResult = jc.constructTypeSymbolNode("wildcard", jc.constructBoundNode("instanceof", stackResult));
+		}
+		
+		//Output after everything has been processed
+		if(itemStack.isEmpty()) outputEntries(pType);
+	}
+	
+	private void outputEntries(int pType)
+	{
+		//Type parameters don't have @types or @typeDependency entries
+		if(stackResult == null || (pType & ParamType.L_TYPEPARAM) != 0) return;
+		
+		String path = elemPath;
+		
+		try
+		{
+			String scheme;
+			
+			if((pType & ParamType.L_RETURN) == 0)
+			{
+				if((pType & ParamType.L_PARAM) != 0)
+				{
+					scheme = "java+parameter";
+					path += "/param" + paramInd;
+					params.add(stackResult);
+				}
+				else if((pType & ParamType.L_SUPER) != 0)
+				{
+					scheme = "java+field";
+				}
+				else
+				{
+					throw new RuntimeException("SigVisitor encountered an unknown SigLoc while parsing the signature.");
+				}
+				
+				//Types entry of item.
+				jc.insert(jc.types, JavaToRascalConverter.values.sourceLocation(scheme, "", classNamePath + "/" + path), stackResult);
+			}
+			else
+			{
+				scheme = "java+method";
+				returnValue = stackResult;
+			}
+			
+			for(Entry<String, String> entry : stackDep.entrySet())
+			{
+				//Item depends on type x
+				jc.insert(jc.typeDependency,
+					JavaToRascalConverter.values.sourceLocation(scheme, "", classNamePath + "/" + path),
+					JavaToRascalConverter.values.sourceLocation(entry.getValue(), "", entry.getKey()));
+			}
+		}
+		catch (URISyntaxException e)
+		{
+			e.printStackTrace();
+		}
 	}
 	
 	private IConstructor mapArray(IConstructor baseValue)
@@ -119,89 +222,36 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 		return baseValue;
 	}
 	
-	private void createEntries(IConstructor cons, LinkedHashMap<String, String> dependencies)
-	{
-		if(cons == null) return;
-		
-		String path = elemPath;
-		
-		try
-		{
-			if((pType & ParamType.IS_TYPEPARAM) == 0)
-			{
-				String scheme;
-				
-				if((pType & ParamType.IS_RETURN) == 0)
-				{
-					if((pType & ParamType.IS_PARAM) != 0)
-					{
-						scheme = "java+parameter";
-						path += "/param" + paramInd;
-						params.add(cons);
-					}
-					else if((pType & ParamType.IS_SUPER) != 0)
-					{
-						scheme = "java+field";
-					}
-					else
-					{
-						throw new RuntimeException("SigVisitor encountered an unknown type while parsing the signature.");
-					}
-					
-					//Types of item is standard type.
-					jc.insert(jc.types, JavaToRascalConverter.values.sourceLocation(scheme, "", classNamePath + "/" + path), cons);
-				}
-				else
-				{
-					scheme = "java+method";
-					returnValue = cons;
-				}
-				
-				for(Entry<String, String> entry : dependencies.entrySet())
-				{
-					//Item depends on type x
-					jc.insert(jc.typeDependency,
-						JavaToRascalConverter.values.sourceLocation(scheme, "", classNamePath + "/" + path),
-						JavaToRascalConverter.values.sourceLocation(entry.getValue(), "", entry.getKey()));
-				}
-			}
-		}
-		catch (URISyntaxException e)
-		{
-			e.printStackTrace();
-		}
-	}
-	
 	private IConstructor instantiateBaseType(String type)
 	{
-		if((pType & ignoreType) != 0) return null;
+		if((pType & ignoreSigLoc) != 0) return null;
 		
 		return mapArray(jc.constructTypeSymbolNode(type));
 	}
 	
 	private IConstructor instantiateClassType(String type, IConstructor typeParam, boolean isInterface)
 	{
-		if((pType & ignoreType) != 0) return null;
+		if((pType & ignoreSigLoc) != 0) return null;
 		
+		IList typeParamsList = typeParam != null ? JavaToRascalConverter.values.list(typeParam)
+			: JavaToRascalConverter.values.list(JavaToRascalConverter.TF.voidType());
+		
+		String tsNodeName;
+		String scheme;
+		
+		if(isInterface)
+		{
+			tsNodeName = "interface";
+			scheme = "java+interface";
+		}
+		else
+		{
+			tsNodeName = "class";
+			scheme = "java+class";
+		}
+			
 		try
 		{
-			IList typeParamsList = typeParam != null ? JavaToRascalConverter.values.list(typeParam)
-				: JavaToRascalConverter.values.list(JavaToRascalConverter.TF.voidType());
-			
-			String tsNodeName;
-			String scheme;
-			
-			if(isInterface)
-			{
-				tsNodeName = "interface";
-				scheme = "java+interface";
-			}
-			else
-			{
-				tsNodeName = "class";
-				scheme = "java+class";
-			}
-			
 			//TODO Check for completeness (this may possibly make some interfaces java+class entries)
 			return mapArray(jc.constructTypeSymbolNode(tsNodeName,
 				JavaToRascalConverter.values.sourceLocation(scheme, "", "/" + type),
@@ -217,7 +267,7 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 	
 	private IConstructor instantiateTypeVar(String type)
 	{
-		if((pType & ignoreType) != 0) return null;
+		if((pType & ignoreSigLoc) != 0) return null;
 		
 		return mapArray(typeParams.containsKey(type) ? typeParams.get(type) : globalTypeParams.get(type));
 	}
@@ -229,35 +279,29 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 		
 		System.out.println(String.format("BASE TYPE: %s, %s", descriptor, type));
 		
-		LinkedHashMap<String, String> dep = new LinkedHashMap<String, String>();
-		dep.put(type, "java+primitiveType");
-		createEntries(instantiateBaseType(type), dep);
+		pType |= ParamType.T_BASE;
+		stackDep.put(type, "java+primitiveType");
+		itemStack.push(new SimpleEntry<String, Integer>(type, pType));
 		
+		buildStackResult();
 		reset();
 		
 		super.visitBaseType(descriptor);
 	}
 	
 	@Override
-	public void visitTypeVariable(String var) //NOTE: visitTypeVariable is a termination function if the itemQueue is empty
+	public void visitTypeVariable(String type) //NOTE: visitTypeVariable is a termination function
 	{
-		System.out.println("TYPE VAR: " + var);
+		System.out.println("TYPE VAR: " + type);
 		
-		if(itemStack.isEmpty())
-		{
-			LinkedHashMap<String, String> dep = new LinkedHashMap<String, String>();
-			dep.put(var, "java+typeVariable");
-			createEntries(instantiateTypeVar(var), dep);
-		}
-		else
-		{
-			pType |= ParamType.T_TYPEVAR;
-			itemStack.push(new SimpleEntry<String, Integer>(var, pType));
-		}
+		pType |= ParamType.T_TYPEVAR;
+		stackDep.put(type, "java+typeVariable");
+		itemStack.push(new SimpleEntry<String, Integer>(type, pType));
 		
+		buildStackResult();
 		reset();
 		
-		super.visitTypeVariable(var);
+		super.visitTypeVariable(type);
 	}
 	
 	@Override
@@ -265,9 +309,9 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 	{
 		System.out.println("CLASS TYPE: " + type);
 		
-		if(type.equalsIgnoreCase("java/lang/Object")) //Special case
+		if(type.equalsIgnoreCase("java/lang/Object")) //Special case; Object is a baseType
 		{
-			if((pType & ParamType.IS_TYPEPARAM) != 0)
+			if((pType & ParamType.L_TYPEPARAM) != 0)
 			{
 				try
 				{
@@ -281,19 +325,23 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 				}
 			}
 			
-			LinkedHashMap<String, String> dep = new LinkedHashMap<String, String>();
-			dep.put("object", "java+primitiveType");
-			createEntries(instantiateBaseType("object"), dep);
+			pType |= ParamType.T_BASE;
+			stackDep.put("object", "java+primitiveType");
+			itemStack.push(new SimpleEntry<String, Integer>("object", pType));
+			
+			buildStackResult(); //Since object is a baseType, we became a termination function
 		}
 		else
 		{
-			if((pType & ParamType.IS_TYPEPARAM) != 0)
+			boolean isInterface = (pType & ParamType.B_INTERFACE) != 0;
+			
+			if((pType & ParamType.L_TYPEPARAM) != 0)
 			{
 				try
 				{
 					typeParams.put(typeParamName, jc.constructTypeSymbolNode("typeParameter",
 						JavaToRascalConverter.values.sourceLocation("java+typeVariable", "", classNamePath + "/" + typeParamName),
-						jc.constructBoundNode("extends", instantiateClassType(type, null, (pType & ParamType.B_INTERFACE) != 0))));
+						jc.constructBoundNode("extends", instantiateClassType(type, null, isInterface))));
 				}
 				catch (URISyntaxException e)
 				{
@@ -302,9 +350,10 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 			}
 			
 			pType |= ParamType.T_CLASS;
+			stackDep.put(type, isInterface ? "java+interface" : "java+class");
 			itemStack.push(new SimpleEntry<String, Integer>(type, pType));
 		}
-		
+
 		reset();
 		
 		super.visitClassType(type);
@@ -315,7 +364,7 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 	{
 		System.out.println(String.format("TYPE PARAM: %s", name));
 		
-		pType |= ParamType.IS_TYPEPARAM;
+		pType |= ParamType.L_TYPEPARAM;
 		typeParamName = name;
 		
 		try
@@ -338,7 +387,7 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 	{
 		System.out.println("TYPE ARG: " + arg);
 		
-		pType |= ParamType.TYPEARG;
+		pType |= ParamType.L_TYPEARG;
 		
 		switch(arg)
 		{
@@ -359,7 +408,12 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 	@Override
 	public void visitTypeArgument()
 	{
-		System.out.println("IS TYPE ARG");
+		System.out.println("TYPE ARG (UNBOUNDED)");
+		
+		pType |= ParamType.L_TYPEARG;
+		
+		//Supposedly called for unbounded type args. Did not see it getting called at all.
+		//Cause is most likely because of being a JAR; everything not bound becomes bound to java/lang/Object.
 		
 		super.visitTypeArgument();
 	}
@@ -380,7 +434,7 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 	{
 		System.out.println("IS PARAM");
 		
-		pType |= ParamType.IS_PARAM;
+		pType |= ParamType.L_PARAM;
 		paramInd++;
 		
 		return super.visitParameterType();
@@ -391,7 +445,7 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 	{
 		System.out.println("IS RETURN");
 		
-		pType |= ParamType.IS_RETURN;
+		pType |= ParamType.L_RETURN;
 		
 		return super.visitReturnType();
 	}
@@ -421,7 +475,7 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 	{
 		System.out.println("IS SUPER");
 
-		pType |= ParamType.IS_SUPER;
+		pType |= ParamType.L_SUPER;
 		
 		return super.visitSuperclass();
 	}
@@ -457,59 +511,11 @@ class Jar2M3SignatureVisitor extends SignatureVisitor
 	}
 	
 	@Override
-	public void visitEnd() //NOTE: visitEnd is the termination function if; !visitBaseType && !(visitTypeVariable && itemStack.isEmpty)
+	public void visitEnd() //NOTE: visitEnd is the termination function if; !visitBaseType && !visitTypeVariable && visitClassType
 	{
 		System.out.println(">>SIG END<<");
 		
-		IConstructor stackResult = null;
-		LinkedHashMap<String, String> dep = new LinkedHashMap<String, String>();
-		
-		while(!itemStack.isEmpty())
-		{
-			SimpleEntry<String, Integer> entry = itemStack.pop();
-			String type = entry.getKey();
-			pType = entry.getValue();
-			String depScheme;
-			
-			IConstructor typeCons;
-			if((pType & ParamType.T_TYPEVAR) != 0)
-			{
-				typeCons = instantiateTypeVar(type);
-				depScheme = "java+typeParameter";
-			}
-			else if((pType & ParamType.T_CLASS) != 0)
-			{
-				boolean isInterface = (pType & ParamType.B_INTERFACE) != 0;
-				typeCons = instantiateClassType(type, stackResult, isInterface);
-				depScheme = isInterface ? "java+interface" : "java+class";
-			}
-			else
-			{
-				throw new RuntimeException("SigVisitor encountered an unknown type while parsing the signature.");
-			}
-			
-			dep.put(type, depScheme);
-			
-			if((pType & ParamType.A_LOWERBOUND) != 0)
-			{
-				stackResult = jc.constructTypeSymbolNode("wildcard", jc.constructBoundNode("super", typeCons));
-			}
-			else if((pType & ParamType.A_UPPERBOUND) != 0)
-			{
-				stackResult = jc.constructTypeSymbolNode("wildcard", jc.constructBoundNode("extends", typeCons));
-			}
-			else if((pType & ParamType.A_INSTANCE) != 0)
-			{
-				stackResult = jc.constructTypeSymbolNode("wildcard", jc.constructBoundNode("instanceof", typeCons));
-			}
-			else
-			{
-				stackResult = typeCons;
-			}
-		}
-		
-		createEntries(stackResult, dep);
-		
+		buildStackResult();
 		reset();
 		
 		super.visitEnd();

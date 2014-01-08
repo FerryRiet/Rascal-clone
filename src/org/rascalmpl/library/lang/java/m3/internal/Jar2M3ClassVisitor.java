@@ -338,7 +338,7 @@ class Jar2M3ClassVisitor extends ClassVisitor
 			processAccess(access, methodScheme, classNamePath + "/" + name + sig, EOpcodeType.METHOD);
 			
 			String sigToVisit = (signature != null ? signature : desc);
-        	int ignoreType = 0;
+        	int ignoreSigLoc = 0;
         	if(methodScheme == "java+constructor")
             {
         		//Constructor depends on the class
@@ -347,11 +347,11 @@ class Jar2M3ClassVisitor extends ClassVisitor
 					JavaToRascalConverter.values.sourceLocation(classScheme, "", classNamePath));
         		
 				//Don't include the return type; it's a constructor
-				ignoreType = Jar2M3SignatureVisitor.ParamType.IS_RETURN;
+				ignoreSigLoc = Jar2M3SignatureVisitor.ParamType.L_RETURN;
             }
         	
         	//M3@types
-        	Jar2M3SignatureVisitor sv = new Jar2M3SignatureVisitor(jc, globalTypeParams, jarFileName, classFileName, classNamePath, name + sig, ignoreType);
+        	Jar2M3SignatureVisitor sv = new Jar2M3SignatureVisitor(jc, globalTypeParams, jarFileName, classFileName, classNamePath, name + sig, ignoreSigLoc);
         	new SignatureReader(sigToVisit).accept(sv);
         	
         	ArrayList<IConstructor> paramValues = sv.getParameters();
